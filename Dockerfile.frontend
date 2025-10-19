@@ -1,50 +1,56 @@
+# Build stage
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Install build dependencies
+RUN npm install -g pnpm && apk add --no-cache python3 make g++
 
-# Copy workspace files
-COPY pnpm-workspace.yaml .
-COPY pnpm-lock.yaml .
-COPY package.json .
+# Copy shared
+COPY shared/package.json shared/pnpm-lock.yaml ./shared/
+COPY shared/src ./shared/src
+COPY shared/tsconfig.json ./shared/
 
-# Copy packages
-COPY packages ./packages
+# Copy frontend
+COPY frontend/package.json frontend/pnpm-lock.yaml ./frontend/
+COPY frontend/src ./frontend/src
+COPY frontend/tsconfig*.json ./frontend/
+COPY frontend/vite.config.ts ./frontend/
+COPY frontend/index.html ./frontend/
+COPY frontend/public ./frontend/public
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Build shared package
-RUN pnpm --filter=@voiceflow/shared build
+RUN cd /app/frontend && pnpm install --frozen-lockfile
 
 # Build frontend
-RUN pnpm --filter=@voiceflow/frontend build
+RUN cd /app/frontend && pnpm build
 
-# Production stage
-FROM node:20-alpine
+# Serve stage - use minimal nginx image
+FROM nginx:alpine
 
-WORKDIR /app
-
-# Install pnpm
-RUN npm install -g pnpm
-
-# Copy workspace files
-COPY pnpm-workspace.yaml .
-COPY pnpm-lock.yaml .
-COPY package.json .
-
-# Copy packages
-COPY packages ./packages
-
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+# Install curl for health checks
+RUN apk add --no-cache curl
 
 # Copy built files from builder
-COPY --from=builder /app/packages/frontend/dist ./packages/frontend/dist
-COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/frontend/dist /usr/share/nginx/html
+
+# Nginx configuration for SPA routing
+RUN echo 'server { \
+    listen 5173; \
+    location / { \
+        root /usr/share/nginx/html; \
+        try_files $uri $uri/ /index.html; \
+    } \
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \
+        expires 1y; \
+        add_header Cache-Control "public, immutable"; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:5173 || exit 1
 
 EXPOSE 5173
 
-CMD ["npm", "run", "preview"]
+CMD ["nginx", "-g", "daemon off;"]

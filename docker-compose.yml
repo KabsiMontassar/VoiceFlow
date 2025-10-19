@@ -3,22 +3,27 @@ version: '3.9'
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: voiceflow_postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-voiceflow}
+      POSTGRES_USER: ${DB_USER:-voiceflow_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-voiceflow_password}
-      POSTGRES_DB: ${DB_NAME:-voiceflow}
+      POSTGRES_DB: ${DB_NAME:-voiceflow_db}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-voiceflow}']
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-voiceflow_user}']
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - voiceflow_network
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
+    container_name: voiceflow_redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -28,21 +33,24 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - voiceflow_network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
 
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    container_name: voiceflow_backend
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
-      DATABASE_URL: postgresql://${DB_USER:-voiceflow}:${DB_PASSWORD:-voiceflow_password}@postgres:5432/${DB_NAME:-voiceflow}
+      DATABASE_URL: postgresql://${DB_USER:-voiceflow_user}:${DB_PASSWORD:-voiceflow_password}@postgres:5432/${DB_NAME:-voiceflow_db}
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-refresh-secret-key-change-in-production}
-      FRONTEND_URL: http://localhost:5173
-      FILEFLOW_API_URL: ${FILEFLOW_API_URL:-http://fileflow:3001}
-      FILEFLOW_API_KEY: ${FILEFLOW_API_KEY:-fileflow-api-key}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-here}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-refresh-secret-here}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     ports:
       - "3000:3000"
     depends_on:
@@ -50,23 +58,44 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./packages/backend/src:/app/src
-    command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - voiceflow_network
+    restart: unless-stopped
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+    container_name: voiceflow_frontend
     environment:
-      VITE_API_URL: http://localhost:3000
-      VITE_SOCKET_URL: http://localhost:3000
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+      VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:3000}
     ports:
       - "5173:5173"
-    volumes:
-      - ./packages/frontend/src:/app/src
-    command: npm run dev
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - voiceflow_network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+
+networks:
+  voiceflow_network:
+    driver: bridge

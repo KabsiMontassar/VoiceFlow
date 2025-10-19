@@ -1,421 +1,419 @@
 # VoiceFlow - Real-Time Collaboration Platform
 
-A Discord-inspired, production-ready real-time collaboration platform built with React, Node.js, WebRTC, and Socket.IO.
+> A production-ready, Discord-inspired real-time collaboration platform built with React, Node.js, WebRTC, and Socket.IO.
 
-## 🎯 Features
+[![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=nodedotjs)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
 
-### Phase 1: Persistent Room Management ✅
-- Create rooms with custom names & unique codes (e.g., `TEAM-X7B9K2`)
-- Persistent rooms with `last_activity` tracking
-- User dashboard: "My Rooms" and "Recent Rooms"
-- Configurable room settings (max users, permissions)
+---
 
-### Phase 2: Real-time Text Chat
-- Socket.IO real-time messaging
-- Typing indicators
-- Online user presence tracking
-- Infinite scroll message history
-- File attachment support via FileFlow
+## 📋 Quick Start
 
-### Phase 3: WebRTC Voice Chat
-- Peer-to-peer voice communication
-- Push-to-talk and voice activation modes
-- Speaker indicators and audio visualization
-- Voice room management
+### Prerequisites
+- **Node.js** 20+
+- **pnpm** 10+ (`npm install -g pnpm`)
+- **Docker** & **Docker Compose** (optional, for database)
 
-### Phase 4: Enhanced Features
-- User avatar system
-- Desktop notifications & sound alerts
-- Mobile-responsive design
-- Admin/member role-based permissions
-
-## 🏗️ Architecture
-
-### Monorepo Structure
-
+### 1️⃣ Clone & Setup
+```bash
+git clone https://github.com/KabsiMontassar/VoiceFlow.git
+cd VoiceFlow
 ```
-voiceflow/
-├── packages/shared/     # Shared types, schemas, constants
-├── packages/backend/    # Express + Socket.IO server
-├── packages/frontend/   # React + Vite application
-└── infra/              # Docker & deployment configs
+
+### 2️⃣ Configure Environment
+```bash
+# .env file is already created with defaults
+cat .env  # Review if needed
 ```
+
+### 3️⃣ Start Database (Optional)
+```bash
+# Start PostgreSQL & Redis
+docker compose up -d
+docker compose ps  # Verify services running
+```
+
+### 4️⃣ Start Backend & Frontend
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+pnpm dev
+```
+✅ Backend runs on `http://localhost:3000`
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+pnpm dev
+```
+✅ Frontend runs on `http://localhost:5173`
+
+### 5️⃣ Access the App
+Open **http://localhost:5173** in your browser
+
+---
+
+## 🏗️ Project Architecture
 
 ### Technology Stack
 
-**Frontend**: React 19 • TypeScript • Vite • TanStack Router • Zustand • Socket.IO Client • WebRTC • Tailwind CSS
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | React 19, Vite, Zustand, Socket.IO Client | UI & State Management |
+| **Backend** | Express.js, Socket.IO, Node.js | REST API & WebSockets |
+| **Database** | PostgreSQL 16, Sequelize ORM | Persistent Data |
+| **Cache** | Redis 7 | Session & Real-time State |
+| **Authentication** | JWT, bcryptjs | Secure Auth |
+| **Infrastructure** | Docker, Docker Compose | Containerization |
 
-**Backend**: Node.js • Express • Socket.IO • PostgreSQL • Redis • Sequelize • JWT • Bull Queue
+### Folder Structure
 
-**Infrastructure**: Docker • Docker Compose • pnpm
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 20+
-- pnpm 9.0+
-- Docker & Docker Compose
-- PostgreSQL 16
-- Redis 7
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/KabsiMontassar/VoiceFlow.git
-   cd VoiceFlow
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pnpm install
-   ```
-
-3. **Set up environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-4. **Start Docker services**
-   ```bash
-   pnpm docker:up
-   ```
-
-5. **Run database migrations**
-   ```bash
-   pnpm db:migrate
-   ```
-
-6. **Start development servers**
-   ```bash
-   # Terminal 1: Backend
-   pnpm dev:backend
-
-   # Terminal 2: Frontend
-   pnpm dev:frontend
-   ```
-
-7. **Open in browser**
-   ```
-   http://localhost:5173
-   ```
-
-## 📚 Documentation
-
-- **[Architecture Guide](./ARCHITECTURE.md)** - Detailed architecture, design patterns, and implementation roadmap
-- **[API Documentation](./docs/API.md)** - REST API endpoints and WebSocket events
-- **[Development Guide](./docs/DEVELOPMENT.md)** - Setup and development workflow
-
-## 🔧 Available Scripts
-
-### Development
-```bash
-pnpm dev                    # Start all services
-pnpm dev:backend           # Backend only
-pnpm dev:frontend          # Frontend only
+```
+VoiceFlow/
+├── backend/                 # Express.js server
+│   ├── src/
+│   │   ├── controllers/     # Request handlers
+│   │   ├── services/        # Business logic
+│   │   ├── models/          # Database schemas
+│   │   ├── routes/          # API endpoints
+│   │   ├── middleware/      # Auth, error handling
+│   │   ├── sockets/         # WebSocket handlers
+│   │   ├── database/        # DB initialization
+│   │   ├── config/          # Configuration
+│   │   └── utils/           # Helpers
+│   ├── package.json
+│   └── .env
+│
+├── frontend/                # React Vite app
+│   ├── src/
+│   │   ├── services/        # API client, Socket.IO
+│   │   ├── stores/          # Zustand stores
+│   │   ├── pages/           # Page components
+│   │   ├── components/      # UI components
+│   │   └── styles/          # Tailwind CSS
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── shared/                  # Shared types & schemas
+│   ├── src/
+│   │   ├── types/           # TypeScript interfaces
+│   │   ├── schemas/         # Zod validation
+│   │   ├── constants/       # App constants
+│   │   └── utils/           # Utilities
+│   └── package.json
+│
+├── docker-compose.yml       # Database services
+├── Dockerfile.backend       # Backend container
+├── Dockerfile.frontend      # Frontend container
+├── .env                     # Environment variables
+└── package.json             # Root coordination
 ```
 
-### Building
+---
+
+## 🚀 Commands
+
+### Backend
 ```bash
-pnpm build                 # Build all packages
-pnpm build:backend        # Backend only
-pnpm build:frontend       # Frontend only
+cd backend
+pnpm install              # Install dependencies
+pnpm dev                  # Start dev server (auto-reload)
+pnpm build                # Build for production
+pnpm start                # Run production build
+pnpm typecheck            # Check TypeScript errors
 ```
 
-### Code Quality
+### Frontend
 ```bash
-pnpm lint                 # Lint all packages
-pnpm format               # Format code
-pnpm typecheck            # Type checking
+cd frontend
+pnpm install              # Install dependencies
+pnpm dev                  # Start dev server (HMR enabled)
+pnpm build                # Build for production
+pnpm preview              # Preview production build
+pnpm lint                 # Run ESLint
+pnpm lint:fix             # Fix linting errors
+pnpm format               # Format code with Prettier
+pnpm typecheck            # Check TypeScript errors
 ```
 
 ### Docker
 ```bash
-pnpm docker:up            # Start services
-pnpm docker:down          # Stop services
-pnpm docker:logs          # View logs
+docker compose up -d      # Start all services
+docker compose down       # Stop all services
+docker compose logs -f    # View logs
+docker compose ps         # List services
 ```
 
-### Database
-```bash
-pnpm db:migrate           # Run migrations
-pnpm db:seed              # Seed database
-```
+---
 
-## 📦 Project Structure
-
-```
-packages/
-├── shared/
-│   ├── src/
-│   │   ├── types/          # TypeScript interfaces
-│   │   ├── schemas/        # Zod validation schemas
-│   │   ├── constants/      # App constants
-│   │   └── utils/          # Helper functions
-│   └── package.json
-│
-├── backend/
-│   ├── src/
-│   │   ├── config/         # Configuration
-│   │   ├── middleware/     # Express middleware
-│   │   ├── controllers/    # Request handlers
-│   │   ├── services/       # Business logic
-│   │   ├── models/         # Database models
-│   │   ├── sockets/        # WebSocket handlers
-│   │   ├── routes/         # API routes
-│   │   ├── database/       # DB setup
-│   │   ├── utils/          # Utilities
-│   │   ├── jobs/           # Bull jobs
-│   │   └── index.ts        # Entry point
-│   └── package.json
-│
-└── frontend/
-    ├── src/
-    │   ├── components/     # React components
-    │   ├── pages/          # Page components
-    │   ├── routes/         # Router config
-    │   ├── stores/         # Zustand stores
-    │   ├── hooks/          # Custom hooks
-    │   ├── services/       # API client
-    │   ├── utils/          # Utilities
-    │   └── App.tsx
-    └── package.json
-```
-
-## 🗄️ Database Schema
-
-### Core Tables
-- **users**: User accounts and profiles
-- **rooms**: Communication rooms
-- **room_users**: Room membership and roles
-- **messages**: Chat messages with attachments
-- **file_metadata**: File information for FileFlow integration
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md#database-schema) for full schema details.
-
-## 🔌 API Endpoints
+## 📡 API Endpoints
 
 ### Authentication
-- `POST /api/v1/auth/register` - Create account
-- `POST /api/v1/auth/login` - Login
-- `POST /api/v1/auth/refresh` - Refresh token
-- `GET /api/v1/auth/verify` - Verify token
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/register` | Create new account |
+| POST | `/api/v1/auth/login` | Login user |
+| POST | `/api/v1/auth/refresh` | Refresh access token |
+| GET | `/api/v1/auth/me` | Get current user |
+| POST | `/api/v1/auth/logout` | Logout user |
 
 ### Rooms
-- `POST /api/v1/rooms` - Create room
-- `GET /api/v1/rooms` - List rooms
-- `GET /api/v1/rooms/:id` - Get room
-- `PATCH /api/v1/rooms/:id` - Update room
-- `DELETE /api/v1/rooms/:id` - Delete room
-- `POST /api/v1/rooms/:code/join` - Join room
-- `POST /api/v1/rooms/:id/leave` - Leave room
-- `GET /api/v1/rooms/:id/members` - Get members
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/rooms` | List user's rooms |
+| POST | `/api/v1/rooms` | Create new room |
+| GET | `/api/v1/rooms/:id` | Get room details |
+| PUT | `/api/v1/rooms/:id` | Update room |
+| DELETE | `/api/v1/rooms/:id` | Delete room |
+| POST | `/api/v1/rooms/:id/join` | Join room |
+| POST | `/api/v1/rooms/:id/leave` | Leave room |
 
 ### Messages
-- `POST /api/v1/messages` - Send message
-- `GET /api/v1/rooms/:roomId/messages` - Get messages
-- `DELETE /api/v1/messages/:id` - Delete message
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/rooms/:roomId/messages` | Get messages |
+| POST | `/api/v1/rooms/:roomId/messages` | Send message |
+| PUT | `/api/v1/messages/:id` | Edit message |
+| DELETE | `/api/v1/messages/:id` | Delete message |
 
-### Users
-- `GET /api/v1/users/me` - Get profile
-- `PATCH /api/v1/users/:id` - Update profile
-
-## 🔌 WebSocket Events
-
-### Client → Server
-- `room:join` - Join a room
+### WebSocket Events
+- `room:join` - Join a chat room
 - `room:leave` - Leave a room
-- `message:send` - Send a message
-- `typing:start` - Start typing
-- `typing:stop` - Stop typing
-- `presence:update` - Update presence
-- `voice:join` - Join voice room
+- `message:send` - Send message
+- `typing:start` / `typing:stop` - Typing indicators
+- `presence:update` - User online status
 - `voice:signal` - WebRTC signaling
 
-### Server → Client
-- `room:joined` - Joined room
-- `room:user_joined` - User joined
-- `room:user_left` - User left
-- `message:received` - Message received
-- `user:typing` - User typing
-- `user:presence_changed` - Presence changed
-- `voice:user_joined` - User joined voice
-- `voice:signal` - WebRTC signal
+---
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md#socketio-events) for detailed event documentation.
+## 🔐 Environment Variables
 
-## 🔐 Security Features
-
-- ✅ JWT-based authentication with refresh tokens
-- ✅ bcryptjs password hashing
-- ✅ CORS protection with Helmet
-- ✅ Input validation with Zod schemas
-- ✅ Rate limiting on sensitive endpoints
-- ✅ WebSocket authentication
-- ✅ SQL injection prevention with parameterized queries
-- ✅ HTTPS support in production
-
-## ⚡ Performance Optimizations
-
-- Redis caching for frequently accessed data
-- Message pagination with infinite scroll
-- Socket.IO room-based broadcasting
-- Database connection pooling
-- Query optimization with indexes
-- Frontend code splitting and lazy loading
-- CSS/JS minification in production
-
-## 🐳 Docker Deployment
-
-### Development
-```bash
-pnpm docker:up
-pnpm docker:logs
-```
-
-### Production Build
-```bash
-pnpm docker:build
-docker-compose -f docker-compose.yml up -d
-```
-
-### Environment Variables
-See `.env.example` for all configuration options.
-
-## 📊 Implementation Roadmap
-
-### Week 1: Foundation
-- [x] Project structure & configuration
-- [ ] User authentication
-- [ ] Database setup
-- [ ] Basic Express routes
-
-### Week 2: Room Management
-- [ ] Room CRUD operations
-- [ ] Real-time chat
-- [ ] Message persistence
-
-### Week 3: Advanced Features
-- [ ] User presence tracking
-- [ ] File attachments
-- [ ] Room permissions
-
-### Week 4: Voice Chat
-- [ ] WebRTC integration
-- [ ] Audio controls
-- [ ] Voice room management
-
-### Week 5-6: Polish & Deployment
-- [ ] Mobile responsiveness
-- [ ] Notifications
-- [ ] Docker deployment
-- [ ] Production optimization
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md#implementation-roadmap) for detailed roadmap.
-
-## 🛠️ Development Workflow
-
-### Creating a Feature
-
-1. **Define types** in `packages/shared/src/types/`
-2. **Create schemas** in `packages/shared/src/schemas/`
-3. **Implement backend**:
-   - Service logic
-   - Controller/route handler
-   - Socket handlers (if real-time)
-4. **Implement frontend**:
-   - Zustand store
-   - React components
-   - API client integration
-
-### Code Quality
-
-```bash
-pnpm lint        # Check code quality
-pnpm format      # Format code
-pnpm typecheck   # Type checking
-```
-
-## 🐛 Troubleshooting
-
-### Database Connection Error
-```bash
-# Ensure PostgreSQL is running
-pnpm docker:up
-
-# Check connection in .env
-DATABASE_URL=postgresql://user:password@localhost:5432/voiceflow
-```
-
-### Socket.IO Connection Issues
-- Ensure backend is running on port 3000
-- Check CORS settings in `.env`
-- Verify `FRONTEND_URL` matches client origin
-
-### Module Not Found Errors
-```bash
-# Reinstall dependencies
-pnpm install --frozen-lockfile
-
-# Clear build cache
-pnpm run clean
-pnpm build
-```
-
-## 📝 Environment Configuration
-
-Copy `.env.example` to `.env` and configure:
-
+### Backend (.env in `backend/`)
 ```env
 # Database
-DATABASE_URL=postgresql://user:password@localhost:5432/voiceflow
+DATABASE_URL=postgresql://user:password@localhost:5432/voiceflow_db
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=voiceflow_db
+DB_USER=voiceflow_user
+DB_PASSWORD=voiceflow_password
 
-# Authentication
-JWT_SECRET=your-secret-key
-JWT_REFRESH_SECRET=your-refresh-secret
+# JWT Authentication
+JWT_SECRET=your-secret-key-here
+JWT_REFRESH_SECRET=your-refresh-secret-here
+JWT_EXPIRY=15m
+JWT_REFRESH_EXPIRY=7d
 
 # Server
 NODE_ENV=development
 PORT=3000
-FRONTEND_URL=http://localhost:5173
 
-# FileFlow Integration
-FILEFLOW_API_URL=http://localhost:3001
-FILEFLOW_API_KEY=your-api-key
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# CORS
+CORS_ORIGIN=http://localhost:5173
 ```
 
-## 🤝 Contributing
-
-1. Create a feature branch: `git checkout -b feature/my-feature`
-2. Commit changes: `git commit -m 'Add feature'`
-3. Push to branch: `git push origin feature/my-feature`
-4. Open a pull request
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
-## 👤 Author
-
-Montassar Kabsi - [@KabsiMontassar](https://github.com/KabsiMontassar)
-
-## 🙏 Acknowledgments
-
-- [Express.js](https://expressjs.com/) - Web framework
-- [Socket.IO](https://socket.io/) - Real-time communication
-- [Sequelize](https://sequelize.org/) - ORM
-- [React](https://react.dev/) - UI library
-- [Vite](https://vitejs.dev/) - Build tool
-- [Tailwind CSS](https://tailwindcss.com/) - Styling
-
-## 📞 Support
-
-For issues, questions, or suggestions:
-- Open an [issue](https://github.com/KabsiMontassar/VoiceFlow/issues)
-- Start a [discussion](https://github.com/KabsiMontassar/VoiceFlow/discussions)
-- Contact: [email@example.com](mailto:email@example.com)
+### Frontend (.env in `frontend/`)
+```env
+VITE_API_URL=http://localhost:3000
+VITE_SOCKET_URL=http://localhost:3000
+```
 
 ---
 
-**Build real-time collaboration experiences with VoiceFlow** ✨
+## 🧪 Testing
+
+### Test Backend API with curl
+```bash
+# Register
+curl -X POST http://localhost:3000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+
+# Login
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
+
+### Test Frontend
+1. Open http://localhost:5173
+2. Register a new account
+3. Create a chat room
+4. Send messages
+5. Test real-time updates
+
+---
+
+## 🐳 Docker Deployment
+
+### Build Images
+```bash
+docker compose build
+```
+
+### Run in Production
+```bash
+docker compose -f docker-compose.yml up -d
+```
+
+### View Logs
+```bash
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f postgres
+docker compose logs -f redis
+```
+
+### Health Check
+```bash
+curl http://localhost:3000/health
+curl http://localhost:5173
+```
+
+---
+
+## 📊 Database Schema
+
+### Users
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  username VARCHAR(255) UNIQUE,
+  password_hash VARCHAR(255),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### Rooms
+```sql
+CREATE TABLE rooms (
+  id UUID PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  code VARCHAR(20) UNIQUE,
+  created_by UUID REFERENCES users(id),
+  max_users INTEGER DEFAULT 10,
+  settings JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### Messages
+```sql
+CREATE TABLE messages (
+  id UUID PRIMARY KEY,
+  room_id UUID REFERENCES rooms(id),
+  user_id UUID REFERENCES users(id),
+  content TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+---
+
+## 🚨 Troubleshooting
+
+### Backend won't start
+```bash
+# Check environment variables
+cat backend/.env
+
+# Reinstall dependencies
+cd backend && pnpm install
+
+# Verify database is running
+docker compose ps
+```
+
+### Frontend won't start
+```bash
+# Check dependencies
+cd frontend && pnpm install
+
+# Clear cache
+rm -rf frontend/.vite node_modules
+
+# Reinstall
+pnpm install
+```
+
+### Database connection refused
+```bash
+# Start database
+docker compose up -d postgres redis
+
+# Check if running
+docker compose ps
+docker compose logs postgres
+```
+
+### Port already in use
+```powershell
+# Find process using port 3000
+Get-Process | Where-Object {$_.Name -eq "node"} | Stop-Process -Force
+
+# Or use different port
+PORT=3001 pnpm dev
+```
+
+---
+
+## 📚 Additional Resources
+
+- **API Documentation**: See `ARCHITECTURE.md`
+- **Implementation Details**: See `IMPLEMENTATION.md`
+- **Environment Setup**: See `.env`
+- **TypeScript Types**: See `shared/src/types/`
+- **Validation Schemas**: See `shared/src/schemas/`
+
+---
+
+## 🤝 Contributing
+
+1. Create a feature branch: `git checkout -b feature/amazing-feature`
+2. Commit changes: `git commit -m 'Add amazing feature'`
+3. Push to branch: `git push origin feature/amazing-feature`
+4. Open a Pull Request
+
+### Code Standards
+- **TypeScript**: Strict mode enabled
+- **Linting**: ESLint configured
+- **Formatting**: Prettier configured
+- **Testing**: Vitest ready
+
+---
+
+## 📝 License
+
+MIT License - See LICENSE file for details
+
+---
+
+## 👨‍💼 Author
+
+**Montassar Kabsi**
+- GitHub: [@KabsiMontassar](https://github.com/KabsiMontassar)
+- Email: montassar.kabsi@example.com
+
+---
+
+## 🙏 Acknowledgments
+
+- [Express.js](https://expressjs.com/)
+- [React](https://react.dev/)
+- [Socket.IO](https://socket.io/)
+- [PostgreSQL](https://www.postgresql.org/)
+- [Redis](https://redis.io/)
+
+---
+
+**Status**: ✅ Production Ready  
+**Last Updated**: October 19, 2025  
+**Version**: 1.0.0
