@@ -1,56 +1,32 @@
 {
-  "name": "voiceflow-monorepo",
-  "private": true,
-  "author": "montassar",
-  "description": "VoiceFlow - Real-time Collaboration Platform",
-  "keywords": [
-    "voiceflow",
-    "collaboration",
-    "voice-chat",
-    "real-time",
-    "websocket"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/KabsiMontassar/VoiceFlow"
-  },
-  "license": "MIT",
+  "name": "@voiceflow/frontend",
   "version": "1.0.0",
   "type": "module",
+  "description": "VoiceFlow frontend application",
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
-    "dev:backend": "pnpm --filter=@voiceflow/backend dev",
-    "dev:frontend": "pnpm --filter=@voiceflow/frontend dev",
-    "build": "pnpm -r build",
-    "build:backend": "pnpm --filter=@voiceflow/backend build",
-    "build:frontend": "pnpm --filter=@voiceflow/frontend build",
-    "build:shared": "pnpm --filter=@voiceflow/shared build",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
-    "format": "pnpm -r format",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:build": "docker-compose build",
-    "docker:logs": "docker-compose logs -f",
-    "db:migrate": "pnpm --filter=@voiceflow/backend migrate",
-    "db:seed": "pnpm --filter=@voiceflow/backend seed",
-    "setup": "git init && npx husky init && shx rm .husky/pre-commit",
-    "commitlint": "commitlint --edit",
-    "commitizen": "exec < /dev/tty && git cz --hook || true",
-    "prepare": "husky"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint --max-warnings 0",
+    "lint:fix": "eslint --max-warnings 0 --fix",
+    "format": "prettier \"src/**/*.{ts,tsx}\" --write",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run src/",
+    "test:unit": "vitest src/",
+    "test:unit:coverage": "vitest --coverage src/"
   },
-  "workspaces": [
-    "packages/*"
-  ],
   "dependencies": {
+    "@voiceflow/shared": "workspace:*",
     "@hookform/resolvers": "^5.2.0",
     "@tanstack/react-query": "^5.83.0",
     "@tanstack/react-router": "^1.130.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.61.1",
+    "socket.io-client": "^4.7.2",
+    "zustand": "^5.0.6",
     "zod": "^4.0.10",
-    "zustand": "^5.0.6"
+    "axios": "^1.6.5"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
@@ -96,10 +72,5 @@
     "typescript-eslint": "^8.38.0",
     "vite": "7.0.6",
     "vitest": "3.2.4"
-  },
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/cz-conventional-changelog"
-    }
   }
 }

@@ -1,0 +1,25 @@
+{
+  "name": "@voiceflow/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Shared types and utilities for VoiceFlow",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "zod": "^4.0.10"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

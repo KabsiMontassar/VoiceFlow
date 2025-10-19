@@ -1,0 +1,72 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-voiceflow}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-voiceflow_password}
+      POSTGRES_DB: ${DB_NAME:-voiceflow}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-voiceflow}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      DATABASE_URL: postgresql://${DB_USER:-voiceflow}:${DB_PASSWORD:-voiceflow_password}@postgres:5432/${DB_NAME:-voiceflow}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-refresh-secret-key-change-in-production}
+      FRONTEND_URL: http://localhost:5173
+      FILEFLOW_API_URL: ${FILEFLOW_API_URL:-http://fileflow:3001}
+      FILEFLOW_API_KEY: ${FILEFLOW_API_KEY:-fileflow-api-key}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./packages/backend/src:/app/src
+    command: npm run dev
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    environment:
+      VITE_API_URL: http://localhost:3000
+      VITE_SOCKET_URL: http://localhost:3000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./packages/frontend/src:/app/src
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:

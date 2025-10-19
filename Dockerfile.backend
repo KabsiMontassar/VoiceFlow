@@ -1,0 +1,50 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy workspace files
+COPY pnpm-workspace.yaml .
+COPY pnpm-lock.yaml .
+COPY package.json .
+
+# Copy packages
+COPY packages ./packages
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Build shared package
+RUN pnpm --filter=@voiceflow/shared build
+
+# Build backend
+RUN pnpm --filter=@voiceflow/backend build
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy workspace files
+COPY pnpm-workspace.yaml .
+COPY pnpm-lock.yaml .
+COPY package.json .
+
+# Copy packages
+COPY packages ./packages
+
+# Install production dependencies only
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy built files from builder
+COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+
+EXPOSE 3000
+
+CMD ["node", "packages/backend/dist/index.js"]
