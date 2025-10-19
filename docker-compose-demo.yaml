@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: voiceflow-postgres-demo
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: voiceflow_dev
+      POSTGRES_USER: voiceflow_user
+      POSTGRES_PASSWORD: voiceflow_pass
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voiceflow_user -d voiceflow_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voiceflow-network
+
+  # Redis Cache & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: voiceflow-redis-demo
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass voiceflow_redis_pass
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - voiceflow-network
+
+  # Redis Commander (Optional - Redis GUI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: voiceflow-redis-gui-demo
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      REDIS_PASSWORD: voiceflow_redis_pass
+      HTTP_USER: admin
+      HTTP_PASSWORD: admin
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - voiceflow-network
+
+  # pgAdmin (Optional - PostgreSQL GUI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: voiceflow-pgadmin-demo
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@voiceflow.dev
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - voiceflow-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  voiceflow-network:
+    driver: bridge
+    name: voiceflow-dev-network
+
+# Health check and monitoring
+# You can check service status with:
+# docker-compose -f docker-compose-demo.yaml ps
+# docker-compose -f docker-compose-demo.yaml logs [service-name]
