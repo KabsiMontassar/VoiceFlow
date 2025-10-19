@@ -4,7 +4,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/responses';
-import { ERROR_CODES } from '@voiceflow/shared';
+import { ERROR_CODES } from '../../../shared/src';
 import logger from '../utils/logger';
 
 export const errorHandler = (

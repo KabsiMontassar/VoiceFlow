@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Room, RoomUser } from '@voiceflow/shared';
+import { Room, RoomUser } from '../../../shared/src';
 
 interface RoomState {
   rooms: Room[];

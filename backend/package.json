@@ -29,7 +29,9 @@
     "socket.io": "^4.7.2",
     "socket.io-redis": "^6.1.1",
     "uuid": "^9.0.1",
-    "zod": "^4.0.10"
+    "zod": "^4.0.10",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -38,6 +40,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^20.10.6",
     "@types/uuid": "^9.0.7",
+    "@types/express-rate-limit": "^6.0.4",
     "tsx": "^4.7.0",
     "typescript": "^5.8.3"
   }

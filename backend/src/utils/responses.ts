@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { SocketErrorResponse, SocketSuccessResponse, ApiResponse } from '@voiceflow/shared';
+import { SocketErrorResponse, SocketSuccessResponse, ApiResponse } from '../../../shared/src';
 
 export class AppError extends Error {
   constructor(

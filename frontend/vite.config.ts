@@ -1,6 +1,6 @@
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react-swc";
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 
 // https://vitejs.dev/config/
@@ -8,15 +8,14 @@ export default defineConfig({
 	plugins: [
 		react(),
 		tailwindcss(),
-		TanStackRouterVite(),
+		TanStackRouterVite({
+			routesDirectory: "./src/routes",
+			generatedRouteTree: "./src/routeTree.gen.ts",
+		}),
 	],
 	server: {
 		host: true,
 		strictPort: true,
-	},
-	test: {
-		environment: "jsdom",
-		setupFiles: ["./vitest.setup.ts"],
-		css: true,
+		port: 5173,
 	},
 });

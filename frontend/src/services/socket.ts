@@ -5,7 +5,7 @@ import {
   Message,
   UserPresence,
   RTCSignalingMessage,
-} from '@voiceflow/shared';
+} from '../../../shared/src';
 
 export interface SocketClientConfig {
   url: string;

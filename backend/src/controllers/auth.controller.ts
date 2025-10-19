@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import { AppError, sendSuccess, sendError } from '../utils/responses';
-import { RegisterSchema, LoginSchema, ERROR_CODES } from '@voiceflow/shared';
+import { RegisterSchema, LoginSchema, ERROR_CODES } from '../../../shared/src';
 
 type AuthRequest = Request & { userId?: string };
 

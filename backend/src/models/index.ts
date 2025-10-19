@@ -5,7 +5,7 @@
 
 import { DataTypes, Model, Sequelize } from 'sequelize';
 // @ts-ignore - Monorepo imports flagged by rootDir constraint but valid
-import { User, Room, Message, RoomUser, MessageType, RoomSettings } from '@voiceflow/shared';
+import { User, Room, Message, RoomUser, MessageType, RoomSettings } from '../../../shared/src';
 
 export class UserModel extends Model implements User {
   declare id: string;

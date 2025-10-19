@@ -65,8 +65,15 @@ export const SOCKET_RESPONSES = {
   // Voice/WebRTC
   VOICE_USER_JOINED: 'voice:user_joined',
   VOICE_USER_LEFT: 'voice:user_left',
-  VOICE_SIGNAL: 'voice:signal',
+  VOICE_USER_MUTED: 'voice:user_muted',
+  VOICE_PARTICIPANTS: 'voice:participants',
   VOICE_ERROR: 'voice:error',
+  VOICE_SIGNAL: 'voice:signal',
+  
+  // User voice activity in text rooms
+  USER_VOICE_JOINED: 'user:voice_joined',
+  USER_VOICE_LEFT: 'user:voice_left',
+  USER_VOICE_MUTED: 'user:voice_muted',
 
   // Errors
   ERROR: 'error',

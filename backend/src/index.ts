@@ -11,6 +11,7 @@ import { Server } from 'socket.io';
 import config from './config/index';
 import { initializeDatabase } from './database/index';
 import { setupSocketHandlers } from './sockets/handlers';
+import { setupRecurringJobs } from './jobs/index';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import logger from './utils/logger';
@@ -62,6 +63,9 @@ const startServer = async (): Promise<void> => {
   try {
     // Initialize database
     await initializeDatabase();
+
+    // Setup recurring background jobs
+    setupRecurringJobs();
 
     // Start HTTP server
     httpServer.listen(config.PORT, () => {

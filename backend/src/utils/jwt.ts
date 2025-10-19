@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { AuthPayload } from '@voiceflow/shared';
+import { AuthPayload } from '../../../shared/src';
 import config from '../config/index';
 
 export const generateAccessToken = (payload: AuthPayload): string => {

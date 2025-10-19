@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Message } from '@voiceflow/shared';
+import { Message } from '../../../shared/src';
 
 interface MessageState {
   messages: Message[];

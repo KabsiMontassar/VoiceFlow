@@ -1,1 +1,138 @@
+/* Import fonts first */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
 @import "tailwindcss";
+
+/* Custom global styles */
+
+/* Base styles */
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-950 font-sans antialiased;
+  }
+
+  h1 {
+    @apply font-serif font-bold;
+  }
+
+  h2 {
+    @apply font-serif font-bold;
+  }
+
+  h3 {
+    @apply font-serif font-bold;
+  }
+
+  code {
+    @apply font-mono;
+  }
+
+  pre {
+    @apply font-mono bg-slate-900 text-white p-4 rounded-lg overflow-x-auto;
+  }
+
+  button {
+    @apply transition-all duration-200;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply transition-all duration-200;
+  }
+}
+
+/* Component styles */
+@layer components {
+  .btn-base {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-mono font-medium transition-all duration-200;
+  }
+
+  .input-base {
+    @apply w-full px-4 py-2 rounded-lg border border-slate-200 text-slate-950 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200;
+  }
+
+  .card-base {
+    @apply rounded-xl p-6 bg-white border border-slate-100 shadow-sm transition-all duration-200;
+  }
+
+  .glass-effect {
+    @apply backdrop-blur-md bg-white/10 border border-white/20;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600;
+  }
+
+  .shadow-soft {
+    @apply shadow-sm hover:shadow-md transition-shadow;
+  }
+
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500;
+  }
+
+  .fade-in {
+    @apply animate-[fadeIn_0.3s_ease-in-out];
+  }
+
+  .slide-in {
+    @apply animate-[slideIn_0.3s_ease-out];
+  }
+}
+
+/* Animations */
+@layer utilities {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse-slow {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-50;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full hover:bg-slate-400;
+}
+
+::-webkit-scrollbar-corner {
+  @apply bg-slate-50;
+}

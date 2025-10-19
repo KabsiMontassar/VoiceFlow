@@ -3,9 +3,9 @@
  */
 
 import { MessageModel, UserModel, RoomModel } from '../models/index';
-import { Message, MessageWithAuthor, PaginatedResponse, ERROR_CODES, User, MessageType } from '@voiceflow/shared';
+import { Message, MessageWithAuthor, PaginatedResponse, ERROR_CODES, User, MessageType } from '../../../shared/src';
 import { AppError } from '../utils/responses';
-import { generateUUID } from '@voiceflow/shared/utils';
+import { generateUUID } from '../../../shared/src/utils';
 
 export class MessageService {
   /**

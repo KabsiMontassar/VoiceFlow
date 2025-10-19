@@ -3,9 +3,9 @@
  */
 
 import { RoomModel, RoomUserModel, UserModel, MessageModel } from '../models/index';
-import { Room, RoomWithParticipants, ERROR_CODES, User, RoomUser } from '@voiceflow/shared';
+import { Room, RoomWithParticipants, ERROR_CODES, User, RoomUser } from '../../../shared/src';
 import { AppError } from '../utils/responses';
-import { generateRoomCode, generateUUID } from '@voiceflow/shared/utils';
+import { generateRoomCode, generateUUID } from '../../../shared/src/utils';
 
 export class RoomService {
   /**

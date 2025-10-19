@@ -3,9 +3,10 @@
  */
 
 import { Server, Socket } from 'socket.io';
-import { SOCKET_EVENTS, SOCKET_RESPONSES, Message, AuthPayload, UserPresenceStatus } from '@voiceflow/shared';
+import { SOCKET_EVENTS, SOCKET_RESPONSES, Message, AuthPayload, UserPresenceStatus, RTCSignalingMessage } from '../../../shared/src';
 import { socketSendSuccess, socketSendError } from '../utils/responses';
 import { verifyAccessToken } from '../utils/jwt';
+import { webrtcService } from '../services/webrtc.service';
 import logger from '../utils/logger';
 
 interface AuthenticatedSocket extends Socket {
@@ -17,6 +18,9 @@ interface AuthenticatedSocket extends Socket {
  * Message handlers for Socket.IO events
  */
 export const setupSocketHandlers = (io: Server): void => {
+  // Initialize WebRTC service
+  webrtcService.initialize(io);
+
   io.use((socket: AuthenticatedSocket, next) => {
     const token = socket.handshake.auth.token;
 
@@ -157,6 +161,69 @@ export const setupSocketHandlers = (io: Server): void => {
       });
     });
 
+    // WebRTC/Voice Chat handlers
+    socket.on(SOCKET_EVENTS.VOICE_JOIN, async (data: { roomId: string }) => {
+      try {
+        await webrtcService.joinVoiceRoom(socket, data.roomId);
+        socket.emit(SOCKET_RESPONSES.VOICE_USER_JOINED, socketSendSuccess({
+          roomId: data.roomId,
+          participants: webrtcService.getVoiceParticipants(data.roomId),
+        }));
+      } catch (error) {
+        socket.emit(SOCKET_RESPONSES.VOICE_ERROR, socketSendError(
+          'VOICE_JOIN_FAILED',
+          'Failed to join voice room'
+        ));
+      }
+    });
+
+    socket.on(SOCKET_EVENTS.VOICE_LEAVE, async (data: { roomId: string }) => {
+      try {
+        await webrtcService.leaveVoiceRoom(socket, data.roomId);
+        socket.emit(SOCKET_RESPONSES.VOICE_USER_LEFT, socketSendSuccess({
+          roomId: data.roomId,
+        }));
+      } catch (error) {
+        socket.emit(SOCKET_RESPONSES.VOICE_ERROR, socketSendError(
+          'VOICE_LEAVE_FAILED',
+          'Failed to leave voice room'
+        ));
+      }
+    });
+
+    socket.on(SOCKET_EVENTS.VOICE_SIGNAL, async (message: RTCSignalingMessage) => {
+      try {
+        await webrtcService.handleSignaling(socket, message);
+      } catch (error) {
+        socket.emit(SOCKET_RESPONSES.VOICE_ERROR, socketSendError(
+          'SIGNALING_FAILED',
+          'Failed to process signaling message'
+        ));
+      }
+    });
+
+    socket.on(SOCKET_EVENTS.VOICE_MUTE, async (data: { isMuted: boolean }) => {
+      try {
+        await webrtcService.handleMuteToggle(socket, data.isMuted);
+      } catch (error) {
+        socket.emit(SOCKET_RESPONSES.VOICE_ERROR, socketSendError(
+          'MUTE_FAILED',
+          'Failed to toggle mute state'
+        ));
+      }
+    });
+
+    socket.on(SOCKET_EVENTS.VOICE_UNMUTE, async () => {
+      try {
+        await webrtcService.handleMuteToggle(socket, false);
+      } catch (error) {
+        socket.emit(SOCKET_RESPONSES.VOICE_ERROR, socketSendError(
+          'UNMUTE_FAILED',
+          'Failed to unmute'
+        ));
+      }
+    });
+
     // WebRTC signaling handler
     socket.on(SOCKET_EVENTS.VOICE_SIGNAL, (data: unknown) => {
       const signalData = data as { to: string; data: unknown };
@@ -170,7 +237,7 @@ export const setupSocketHandlers = (io: Server): void => {
     });
 
     // Disconnect handler
-    socket.on(SOCKET_EVENTS.DISCONNECT, () => {
+    socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
       if (socket.currentRoom) {
         socket.to(socket.currentRoom).emit(SOCKET_RESPONSES.ROOM_USER_LEFT, {
           userId: socket.userId,
@@ -178,6 +245,9 @@ export const setupSocketHandlers = (io: Server): void => {
           timestamp: Date.now(),
         });
       }
+
+      // Clean up WebRTC connections
+      await webrtcService.cleanupUser(socket);
 
       logger.info(`User ${socket.userId} disconnected`);
     });

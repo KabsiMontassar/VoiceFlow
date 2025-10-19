@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import apiClient from '../services/api';
-import type { User } from '@voiceflow/shared';
+import type { User } from '../../../shared/src';
 
 interface AuthState {
   user: User | null;

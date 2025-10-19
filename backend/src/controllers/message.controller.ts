@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { MessageService } from '../services/message.service';
 import { AppError } from '../utils/responses';
-import { CreateMessageSchema, PaginationSchema } from '@voiceflow/shared';
+import { CreateMessageSchema, PaginationSchema } from '../../../shared/src';
 
 type AuthRequest = Request & { userId?: string };
 

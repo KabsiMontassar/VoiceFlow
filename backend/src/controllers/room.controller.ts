@@ -6,7 +6,7 @@ import {
   UpdateRoomSchema,
   PaginationSchema,
   ERROR_CODES,
-} from '@voiceflow/shared';
+} from '../../../shared/src';
 
 type AuthRequest = Request & { userId?: string };
 

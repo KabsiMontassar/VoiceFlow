@@ -6,8 +6,8 @@ import { UserModel } from '../models/index';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { hashPassword, comparePassword } from '../utils/password';
 import { AppError } from '../utils/responses';
-import { ERROR_CODES, User, AuthPayload } from '@voiceflow/shared';
-import { generateUUID } from '@voiceflow/shared/utils';
+import { ERROR_CODES, User, AuthPayload } from '../../../shared/src';
+import { generateUUID } from '../../../shared/src/utils';
 
 export class AuthService {
   /**

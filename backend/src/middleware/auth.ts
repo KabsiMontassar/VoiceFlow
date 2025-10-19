@@ -5,7 +5,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt';
 import { AppError } from '../utils/responses';
-import { AuthPayload, ERROR_CODES } from '@voiceflow/shared';
+import { AuthPayload, ERROR_CODES } from '../../../shared/src';
 import logger from '../utils/logger';
 
 export interface AuthenticatedRequest extends Request {
