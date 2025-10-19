@@ -6,6 +6,10 @@ WORKDIR /app
 # Install build dependencies
 RUN npm install -g pnpm && apk add --no-cache python3 make g++
 
+# Copy root config files
+COPY tsconfig.json ./
+COPY tsconfig.node.json ./
+
 # Copy shared package first (smaller, better for layer caching)
 COPY shared/package.json shared/pnpm-lock.yaml ./shared/
 COPY shared/src ./shared/src

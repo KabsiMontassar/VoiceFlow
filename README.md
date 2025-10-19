@@ -12,23 +12,27 @@
 ## 📋 Quick Start
 
 ### Prerequisites
+
 - **Node.js** 20+
 - **pnpm** 10+ (`npm install -g pnpm`)
 - **Docker** & **Docker Compose** (optional, for database)
 
 ### 1️⃣ Clone & Setup
+
 ```bash
 git clone https://github.com/KabsiMontassar/VoiceFlow.git
 cd VoiceFlow
 ```
 
 ### 2️⃣ Configure Environment
+
 ```bash
 # .env file is already created with defaults
 cat .env  # Review if needed
 ```
 
 ### 3️⃣ Start Database (Optional)
+
 ```bash
 # Start PostgreSQL & Redis
 docker compose up -d
@@ -38,21 +42,26 @@ docker compose ps  # Verify services running
 ### 4️⃣ Start Backend & Frontend
 
 **Terminal 1 - Backend:**
+
 ```bash
 cd backend
 pnpm dev
 ```
+
 ✅ Backend runs on `http://localhost:3000`
 
 **Terminal 2 - Frontend:**
+
 ```bash
 cd frontend
 pnpm dev
 ```
+
 ✅ Frontend runs on `http://localhost:5173`
 
 ### 5️⃣ Access the App
-Open **http://localhost:5173** in your browser
+
+Open **<http://localhost:5173>** in your browser
 
 ---
 
@@ -60,18 +69,18 @@ Open **http://localhost:5173** in your browser
 
 ### Technology Stack
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | React 19, Vite, Zustand, Socket.IO Client | UI & State Management |
-| **Backend** | Express.js, Socket.IO, Node.js | REST API & WebSockets |
-| **Database** | PostgreSQL 16, Sequelize ORM | Persistent Data |
-| **Cache** | Redis 7 | Session & Real-time State |
-| **Authentication** | JWT, bcryptjs | Secure Auth |
-| **Infrastructure** | Docker, Docker Compose | Containerization |
+| Layer              | Technology                                | Purpose                   |
+| ------------------ | ----------------------------------------- | ------------------------- |
+| **Frontend**       | React 19, Vite, Zustand, Socket.IO Client | UI & State Management     |
+| **Backend**        | Express.js, Socket.IO, Node.js            | REST API & WebSockets     |
+| **Database**       | PostgreSQL 16, Sequelize ORM              | Persistent Data           |
+| **Cache**          | Redis 7                                   | Session & Real-time State |
+| **Authentication** | JWT, bcryptjs                             | Secure Auth               |
+| **Infrastructure** | Docker, Docker Compose                    | Containerization          |
 
 ### Folder Structure
 
-```
+```text
 VoiceFlow/
 ├── backend/                 # Express.js server
 │   ├── src/
@@ -117,6 +126,7 @@ VoiceFlow/
 ## 🚀 Commands
 
 ### Backend
+
 ```bash
 cd backend
 pnpm install              # Install dependencies
@@ -127,6 +137,7 @@ pnpm typecheck            # Check TypeScript errors
 ```
 
 ### Frontend
+
 ```bash
 cd frontend
 pnpm install              # Install dependencies
@@ -140,6 +151,7 @@ pnpm typecheck            # Check TypeScript errors
 ```
 
 ### Docker
+
 ```bash
 docker compose up -d      # Start all services
 docker compose down       # Stop all services
@@ -152,34 +164,38 @@ docker compose ps         # List services
 ## 📡 API Endpoints
 
 ### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/auth/register` | Create new account |
-| POST | `/api/v1/auth/login` | Login user |
-| POST | `/api/v1/auth/refresh` | Refresh access token |
-| GET | `/api/v1/auth/me` | Get current user |
-| POST | `/api/v1/auth/logout` | Logout user |
+
+| Method | Endpoint                | Description          |
+| ------ | ----------------------- | -------------------- |
+| POST   | `/api/v1/auth/register` | Create new account   |
+| POST   | `/api/v1/auth/login`    | Login user           |
+| POST   | `/api/v1/auth/refresh`  | Refresh access token |
+| GET    | `/api/v1/auth/me`       | Get current user     |
+| POST   | `/api/v1/auth/logout`   | Logout user          |
 
 ### Rooms
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/rooms` | List user's rooms |
-| POST | `/api/v1/rooms` | Create new room |
-| GET | `/api/v1/rooms/:id` | Get room details |
-| PUT | `/api/v1/rooms/:id` | Update room |
-| DELETE | `/api/v1/rooms/:id` | Delete room |
-| POST | `/api/v1/rooms/:id/join` | Join room |
-| POST | `/api/v1/rooms/:id/leave` | Leave room |
+
+| Method | Endpoint                  | Description       |
+| ------ | ------------------------- | ----------------- |
+| GET    | `/api/v1/rooms`           | List user's rooms |
+| POST   | `/api/v1/rooms`           | Create new room   |
+| GET    | `/api/v1/rooms/:id`       | Get room details  |
+| PUT    | `/api/v1/rooms/:id`       | Update room       |
+| DELETE | `/api/v1/rooms/:id`       | Delete room       |
+| POST   | `/api/v1/rooms/:id/join`  | Join room         |
+| POST   | `/api/v1/rooms/:id/leave` | Leave room        |
 
 ### Messages
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/rooms/:roomId/messages` | Get messages |
-| POST | `/api/v1/rooms/:roomId/messages` | Send message |
-| PUT | `/api/v1/messages/:id` | Edit message |
-| DELETE | `/api/v1/messages/:id` | Delete message |
+
+| Method | Endpoint                         | Description    |
+| ------ | -------------------------------- | -------------- |
+| GET    | `/api/v1/rooms/:roomId/messages` | Get messages   |
+| POST   | `/api/v1/rooms/:roomId/messages` | Send message   |
+| PUT    | `/api/v1/messages/:id`           | Edit message   |
+| DELETE | `/api/v1/messages/:id`           | Delete message |
 
 ### WebSocket Events
+
 - `room:join` - Join a chat room
 - `room:leave` - Leave a room
 - `message:send` - Send message
@@ -192,6 +208,7 @@ docker compose ps         # List services
 ## 🔐 Environment Variables
 
 ### Backend (.env in `backend/`)
+
 ```env
 # Database
 DATABASE_URL=postgresql://user:password@localhost:5432/voiceflow_db
@@ -219,6 +236,7 @@ CORS_ORIGIN=http://localhost:5173
 ```
 
 ### Frontend (.env in `frontend/`)
+
 ```env
 VITE_API_URL=http://localhost:3000
 VITE_SOCKET_URL=http://localhost:3000
@@ -229,6 +247,7 @@ VITE_SOCKET_URL=http://localhost:3000
 ## 🧪 Testing
 
 ### Test Backend API with curl
+
 ```bash
 # Register
 curl -X POST http://localhost:3000/api/v1/auth/register \
@@ -242,7 +261,8 @@ curl -X POST http://localhost:3000/api/v1/auth/login \
 ```
 
 ### Test Frontend
-1. Open http://localhost:5173
+
+1. Open <http://localhost:5173>
 2. Register a new account
 3. Create a chat room
 4. Send messages
@@ -253,16 +273,19 @@ curl -X POST http://localhost:3000/api/v1/auth/login \
 ## 🐳 Docker Deployment
 
 ### Build Images
+
 ```bash
 docker compose build
 ```
 
 ### Run in Production
+
 ```bash
 docker compose -f docker-compose.yml up -d
 ```
 
 ### View Logs
+
 ```bash
 docker compose logs -f backend
 docker compose logs -f frontend
@@ -271,6 +294,7 @@ docker compose logs -f redis
 ```
 
 ### Health Check
+
 ```bash
 curl http://localhost:3000/health
 curl http://localhost:5173
@@ -281,6 +305,7 @@ curl http://localhost:5173
 ## 📊 Database Schema
 
 ### Users
+
 ```sql
 CREATE TABLE users (
   id UUID PRIMARY KEY,
@@ -292,7 +317,8 @@ CREATE TABLE users (
 );
 ```
 
-### Rooms
+### Roomss
+
 ```sql
 CREATE TABLE rooms (
   id UUID PRIMARY KEY,
@@ -305,7 +331,8 @@ CREATE TABLE rooms (
 );
 ```
 
-### Messages
+### Messagess
+
 ```sql
 CREATE TABLE messages (
   id UUID PRIMARY KEY,
@@ -321,6 +348,7 @@ CREATE TABLE messages (
 ## 🚨 Troubleshooting
 
 ### Backend won't start
+
 ```bash
 # Check environment variables
 cat backend/.env
@@ -333,6 +361,7 @@ docker compose ps
 ```
 
 ### Frontend won't start
+
 ```bash
 # Check dependencies
 cd frontend && pnpm install
@@ -345,6 +374,7 @@ pnpm install
 ```
 
 ### Database connection refused
+
 ```bash
 # Start database
 docker compose up -d postgres redis
@@ -355,6 +385,7 @@ docker compose logs postgres
 ```
 
 ### Port already in use
+
 ```powershell
 # Find process using port 3000
 Get-Process | Where-Object {$_.Name -eq "node"} | Stop-Process -Force
@@ -383,6 +414,7 @@ PORT=3001 pnpm dev
 4. Open a Pull Request
 
 ### Code Standards
+
 - **TypeScript**: Strict mode enabled
 - **Linting**: ESLint configured
 - **Formatting**: Prettier configured
@@ -398,9 +430,10 @@ MIT License - See LICENSE file for details
 
 ## 👨‍💼 Author
 
-**Montassar Kabsi**
+## Montassar Kabsi
+
 - GitHub: [@KabsiMontassar](https://github.com/KabsiMontassar)
-- Email: montassar.kabsi@example.com
+- Email: <montassar.kabsi@example.com>
 
 ---
 

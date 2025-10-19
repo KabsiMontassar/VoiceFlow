@@ -6,6 +6,13 @@ WORKDIR /app
 # Install build dependencies
 RUN npm install -g pnpm && apk add --no-cache python3 make g++
 
+# Copy root config files
+COPY tsconfig.json ./
+COPY vite.config.ts ./
+COPY prettier.config.js ./
+COPY tailwind.config.js ./
+COPY eslint.config.js ./
+
 # Copy shared
 COPY shared/package.json shared/pnpm-lock.yaml ./shared/
 COPY shared/src ./shared/src
@@ -15,7 +22,6 @@ COPY shared/tsconfig.json ./shared/
 COPY frontend/package.json frontend/pnpm-lock.yaml ./frontend/
 COPY frontend/src ./frontend/src
 COPY frontend/tsconfig*.json ./frontend/
-COPY frontend/vite.config.ts ./frontend/
 COPY frontend/index.html ./frontend/
 COPY frontend/public ./frontend/public
 
