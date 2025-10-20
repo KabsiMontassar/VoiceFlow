@@ -141,13 +141,32 @@ export default function Room(): FunctionComponent {
       {/* Header */}
       <header className="bg-white border-b border-primary-100 flex-shrink-0">
         <div className="px-6 py-4 flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-bold text-primary-950 font-serif">
               {(roomData as any)?.name || 'Room'}
             </h1>
-            <p className="text-sm text-primary-600 font-mono">
-              {(membersData as any)?.length || 0} members online
-            </p>
+            <div className="flex items-center gap-4 mt-1">
+              <p className="text-sm text-primary-600 font-mono">
+                {(membersData as any)?.length || 0} members online
+              </p>
+              {(roomData as any)?.code && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-primary-600 font-mono">Room Code:</span>
+                  <span className="inline-block px-2 py-1 bg-primary-100 text-primary-900 rounded text-xs font-mono font-bold">
+                    {(roomData as any).code}
+                  </span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText((roomData as any).code)}
+                    className="text-primary-600 hover:text-primary-900 transition-colors"
+                    title="Copy room code"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-4">

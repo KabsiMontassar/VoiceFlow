@@ -18,43 +18,55 @@ export class RoomService {
     maxUsers: number = 100,
     settings: Record<string, unknown> = {},
   ): Promise<Room> {
-    const code = generateRoomCode();
+    try {
+      console.log('Creating room with params:', { createdById, name, description, maxUsers });
+      const code = generateRoomCode();
+      console.log('Generated room code:', code);
 
-    const room = await RoomModel.create({
-      id: generateUUID(),
-      code,
-      name,
-      description,
-      createdById,
-      maxUsers,
-      settings: {
-        isPublic: true,
-        allowGuests: false,
-        requireApproval: false,
-        recordMessages: true,
-        ...settings,
-      },
-      createdAt: new Date(),
-      lastActivity: new Date(),
-      isActive: true,
-    });
+      const room = await RoomModel.create({
+        id: generateUUID(),
+        code,
+        name,
+        description,
+        createdById,
+        maxUsers,
+        settings: {
+          isPublic: true,
+          allowGuests: false,
+          requireApproval: false,
+          recordMessages: true,
+          ...settings,
+        },
+        createdAt: new Date(),
+        lastActivity: new Date(),
+        isActive: true,
+      });
 
-    // Add creator as admin
-    await RoomUserModel.create({
-      id: generateUUID(),
-      roomId: room.id,
-      userId: createdById,
-      role: 'admin',
-      joinedAt: new Date(),
-    });
+      console.log('Room created in database:', room.id);
 
-    return room.toJSON();
+      // Add creator as admin
+      await RoomUserModel.create({
+        id: generateUUID(),
+        roomId: room.id,
+        userId: createdById,
+        role: 'admin',
+        joinedAt: new Date(),
+      });
+
+      console.log('Room creator added as admin');
+
+      return room.toJSON();
+    } catch (error) {
+      console.error('Error creating room:', error);
+      throw error;
+    }
   }
 
   /**
    * Get room by ID with participants
    */
   async getRoomById(roomId: string): Promise<RoomWithParticipants> {
+    console.log('Getting room by ID:', roomId);
     const room = await RoomModel.findByPk(roomId);
 
     if (!room) {
@@ -72,6 +84,8 @@ export class RoomService {
         },
       ],
     });
+
+    console.log('Found participants:', participants.length);
 
     return {
       ...room.toJSON(),
@@ -105,25 +119,49 @@ export class RoomService {
    * List user's rooms
    */
   async listUserRooms(userId: string, page: number = 1, limit: number = 20): Promise<{ rooms: Room[]; total: number }> {
+    console.log('Listing rooms for user:', userId);
     const offset = (page - 1) * limit;
 
+    // Get room IDs that the user is a member of
+    const userRooms = await RoomUserModel.findAll({
+      where: { userId },
+      attributes: ['roomId'],
+    });
+
+    const roomIds = userRooms.map(ur => ur.roomId);
+    console.log('User is member of room IDs:', roomIds);
+
+    if (roomIds.length === 0) {
+      return { rooms: [], total: 0 };
+    }
+
     const { count, rows } = await RoomModel.findAndCountAll({
-      include: [
-        {
-          model: UserModel,
-          as: 'room_users',
-          where: { userId },
-          through: { attributes: [] },
-          attributes: [],
-        },
-      ],
+      where: {
+        id: roomIds,
+        isActive: true,
+      },
       limit,
       offset,
       order: [['lastActivity', 'DESC']],
     });
 
+    console.log('Found rooms:', count);
+
+    const roomsWithMemberCount = await Promise.all(
+      rows.map(async (room) => {
+        const memberCount = await RoomUserModel.count({
+          where: { roomId: room.id },
+        });
+        
+        return {
+          ...room.toJSON(),
+          memberCount,
+        };
+      })
+    );
+
     return {
-      rooms: rows.map((r) => r.toJSON()),
+      rooms: roomsWithMemberCount,
       total: count,
     };
   }
@@ -192,6 +230,7 @@ export class RoomService {
    * Get room members
    */
   async getRoomMembers(roomId: string): Promise<unknown[]> {
+    console.log('Getting members for room:', roomId);
     const members = await RoomUserModel.findAll({
       where: { roomId },
       include: [
@@ -202,6 +241,8 @@ export class RoomService {
         },
       ],
     });
+
+    console.log('Found members:', members.length);
 
     return members.map((m) => {
       const user = (m.get('user') as unknown) as User;

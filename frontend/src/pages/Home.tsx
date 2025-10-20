@@ -47,7 +47,7 @@ export const Home = (): FunctionComponent => {
           <Button
             variant="primary"
             size="lg"
-            onClick={() => navigate({ to: '/' })}
+            onClick={() => navigate({ to: '/login' })}
             className="px-8"
           >
             Sign In
@@ -55,7 +55,7 @@ export const Home = (): FunctionComponent => {
           <Button
             variant="secondary"
             size="lg"
-            onClick={() => navigate({ to: '/' })}
+            onClick={() => navigate({ to: '/register' })}
             className="px-8"
           >
             Create Account

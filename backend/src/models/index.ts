@@ -346,6 +346,12 @@ export const initializeModels = (sequelize: Sequelize): void => {
   UserModel.belongsToMany(RoomModel, { through: RoomUserModel, foreignKey: 'userId' });
   RoomModel.belongsToMany(UserModel, { through: RoomUserModel, foreignKey: 'roomId' });
 
+  UserModel.hasMany(RoomUserModel, { foreignKey: 'userId' });
+  RoomUserModel.belongsTo(UserModel, { foreignKey: 'userId', as: 'user' });
+
+  RoomModel.hasMany(RoomUserModel, { foreignKey: 'roomId' });
+  RoomUserModel.belongsTo(RoomModel, { foreignKey: 'roomId', as: 'room' });
+
   UserModel.hasMany(MessageModel, { foreignKey: 'userId' });
   MessageModel.belongsTo(UserModel, { foreignKey: 'userId', as: 'author' });
 

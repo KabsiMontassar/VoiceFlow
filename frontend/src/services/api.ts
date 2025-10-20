@@ -85,7 +85,7 @@ class ApiClient {
 
   private loadTokens(): void {
     try {
-      this.accessToken = localStorage.getItem('accessToken');
+      this.accessToken = localStorage.getItem('authToken') || localStorage.getItem('accessToken');
       this.refreshToken = localStorage.getItem('refreshToken');
     } catch {
       this.clearTokens();
@@ -94,6 +94,7 @@ class ApiClient {
 
   private saveTokens(): void {
     if (this.accessToken) {
+      localStorage.setItem('authToken', this.accessToken);
       localStorage.setItem('accessToken', this.accessToken);
     }
     if (this.refreshToken) {
@@ -120,6 +121,7 @@ class ApiClient {
   clearTokens(): void {
     this.accessToken = null;
     this.refreshToken = null;
+    localStorage.removeItem('authToken');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
   }

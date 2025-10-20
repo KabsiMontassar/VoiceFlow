@@ -40,25 +40,46 @@ function LoginPage() {
       const response = await apiClient.login(data);
       
       const authData = (response as any).data || response;
+      console.log('Login: Auth data received:', authData);
       
-      // Store tokens
-      if (authData.token) {
-        localStorage.setItem("authToken", authData.token);
-        apiClient.setAccessToken(authData.token);
+      // Store tokens in localStorage
+      if (authData.accessToken) {
+        localStorage.setItem("authToken", authData.accessToken);
+        localStorage.setItem("accessToken", authData.accessToken);
+        apiClient.setAccessToken(authData.accessToken);
+        console.log('Login: Access token stored');
+      }
+
+      if (authData.refreshToken) {
+        localStorage.setItem("refreshToken", authData.refreshToken);
+        apiClient.setRefreshToken(authData.refreshToken);
+        console.log('Login: Refresh token stored');
       }
       
-      // Update auth store
+      // Update auth store with both user and tokens
       if (authData.user) {
         setUser(authData.user);
+        console.log('Login: User set in store');
+      }
+      
+      // Set tokens in the store to ensure isAuthenticated is true
+      if (authData.accessToken) {
+        useAuthStore.getState().setTokens(
+          authData.accessToken, 
+          authData.refreshToken || ""
+        );
+        console.log('Login: Tokens set in auth store');
       }
       
       setToastMessage({ type: "success", text: "Login successful! Redirecting..." });
       
       // Redirect to dashboard
       setTimeout(() => {
+        console.log('Login: Redirecting to dashboard');
         window.location.href = "/dashboard";
       }, 500);
     } catch (error: any) {
+      console.error('Login error:', error);
       setToastMessage({
         type: "error",
         text: error.response?.data?.message || "Login failed. Please try again.",

@@ -37,9 +37,20 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }: ToastProps)
   };
 
   return (
-    <div className={`flex items-center gap-3 p-4 border rounded-lg ${typeClasses[type]}`}>
-      <span className="font-bold text-lg">{icons[type]}</span>
-      <p className="font-mono text-sm">{message}</p>
+    <div className="fixed top-4 right-4 z-50">
+      <div className={`flex items-center gap-3 p-4 border rounded-lg shadow-lg ${typeClasses[type]}`}>
+        <span className="font-bold text-lg">{icons[type]}</span>
+        <p className="font-mono text-sm">{message}</p>
+        <button
+          onClick={() => {
+            setIsVisible(false);
+            onClose?.();
+          }}
+          className="ml-2 text-current opacity-70 hover:opacity-100"
+        >
+          ✕
+        </button>
+      </div>
     </div>
   );
 };

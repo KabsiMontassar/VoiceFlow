@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Avatar from '../components/ui/Avatar';
@@ -11,34 +12,132 @@ import type { FunctionComponent } from '../common/types';
 
 const Dashboard = (): FunctionComponent => {
   const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [showJoinRoom, setShowJoinRoom] = useState(false);
   const [roomName, setRoomName] = useState('');
   const [roomDescription, setRoomDescription] = useState('');
+  const [roomCode, setRoomCode] = useState('');
 
-  const { data: roomsData, isLoading: roomsLoading } = useQuery({
+  const { data: roomsData, isLoading: roomsLoading, error: roomsError } = useQuery({
     queryKey: ['rooms'],
     queryFn: async () => {
-      const response = await apiClient.listUserRooms();
-      return response.data;
+      console.log('Fetching user rooms...');
+      try {
+        const response = await apiClient.listUserRooms();
+        console.log('Rooms API response:', response);
+        
+        if (!response.success) {
+          throw new Error(response.message || 'Failed to load rooms');
+        }
+        
+        // The backend returns { success: true, data: { rooms: [], total: 0 } }
+        const data = response.data as any;
+        console.log('Rooms data structure:', data);
+        console.log('Rooms array:', data.rooms);
+        
+        // Return the rooms array directly
+        return data.rooms || [];
+      } catch (error) {
+        console.error('Error fetching rooms:', error);
+        throw error;
+      }
     },
+    retry: 1,
   });
 
-  const handleCreateRoom = async () => {
-    if (!roomName.trim()) return;
-
-    try {
-      await apiClient.createRoom({
+  // Create room mutation
+  const createRoomMutation = useMutation({
+    mutationFn: async () => {
+      if (!roomName.trim()) throw new Error('Room name is required');
+      const response = await apiClient.createRoom({
         name: roomName,
         description: roomDescription,
         maxUsers: 50,
       });
+      console.log('Create room response:', response);
+      
+      // Check if the response was successful
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to create room');
+      }
+      
+      return response;
+    },
+    onSuccess: (response) => {
+      console.log('Room created successfully:', response);
       setRoomName('');
       setRoomDescription('');
       setShowCreateRoom(false);
-    } catch (error) {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    },
+    onError: (error) => {
       console.error('Failed to create room:', error);
+    },
+  });
+
+  // Join room mutation
+  const joinRoomMutation = useMutation({
+    mutationFn: async () => {
+      if (!roomCode.trim()) throw new Error('Room code is required');
+      
+      // First get the room by code
+      const roomResponse = await apiClient.getRoomByCode(roomCode);
+      console.log('Room by code response:', roomResponse);
+      
+      if (!roomResponse.success) {
+        throw new Error(roomResponse.message || 'Room not found');
+      }
+      
+      const room = roomResponse.data as any;
+      if (!room) throw new Error('Room not found');
+      
+      // Then join the room
+      const joinResponse = await apiClient.joinRoom(room.id);
+      
+      if (!joinResponse.success) {
+        throw new Error(joinResponse.message || 'Failed to join room');
+      }
+      
+      return room;
+    },
+    onSuccess: () => {
+      setRoomCode('');
+      setShowJoinRoom(false);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    },
+    onError: (error) => {
+      console.error('Failed to join room:', error);
+    },
+  });
+
+  const handleCreateRoom = () => {
+    createRoomMutation.mutate();
+  };
+
+  const handleJoinRoom = () => {
+    joinRoomMutation.mutate();
+  };
+
+  const copyRoomCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      // You could add a toast notification here
+      console.log('Room code copied to clipboard');
+    } catch (error) {
+      console.error('Failed to copy room code:', error);
     }
   };
+
+  const enterRoom = (roomId: string) => {
+    navigate({ to: `/room/${roomId}` });
+  };
+
+  // Debug logging
+  console.log('Dashboard render - roomsData:', roomsData);
+  console.log('Dashboard render - roomsLoading:', roomsLoading);
+  console.log('Dashboard render - roomsError:', roomsError);
 
   return (
     <div className="min-h-screen bg-primary-50">
@@ -86,7 +185,7 @@ const Dashboard = (): FunctionComponent => {
         </div>
 
         {/* Create Room Button */}
-        <div className="mb-8">
+        <div className="mb-8 flex gap-4">
           <Button
             variant="primary"
             size="lg"
@@ -94,10 +193,31 @@ const Dashboard = (): FunctionComponent => {
           >
             + Create New Room
           </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            onClick={() => setShowJoinRoom(true)}
+          >
+            Join Room
+          </Button>
         </div>
 
         {/* Rooms Grid */}
+        {roomsError && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-300 rounded text-red-700">
+            Error loading rooms: {(roomsError as any)?.message || 'Unknown error'}
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {(() => {
+            console.log('Rooms display logic - roomsLoading:', roomsLoading);
+            console.log('Rooms display logic - roomsError:', roomsError);
+            console.log('Rooms display logic - roomsData:', roomsData);
+            console.log('Rooms display logic - roomsData type:', typeof roomsData);
+            console.log('Rooms display logic - Array.isArray(roomsData):', Array.isArray(roomsData));
+            console.log('Rooms display logic - roomsData?.length:', roomsData?.length);
+            return null;
+          })()}
           {roomsLoading ? (
             <Card className="col-span-full flex items-center justify-center h-40">
               <div className="text-center">
@@ -105,15 +225,30 @@ const Dashboard = (): FunctionComponent => {
                 <p className="mt-4 text-primary-600 font-mono">Loading rooms...</p>
               </div>
             </Card>
-          ) : (roomsData as any)?.length > 0 ? (
-            (roomsData as any).map((room: any) => (
+          ) : roomsData?.length > 0 ? (
+            roomsData.map((room: any) => (
               <Card key={room.id} variant="default" className="hover:shadow-lg transition-shadow">
                 <div className="flex items-start justify-between mb-4">
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-bold text-primary-950 font-serif">{room.name}</h3>
                     <p className="text-sm text-primary-600 font-mono mt-1">
                       {room.description || 'No description'}
                     </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-primary-600 font-mono">Room Code:</span>
+                      <span className="inline-block px-2 py-1 bg-primary-100 text-primary-900 rounded text-xs font-mono font-bold">
+                        {room.code}
+                      </span>
+                      <button
+                        onClick={() => copyRoomCode(room.code)}
+                        className="text-primary-600 hover:text-primary-900 transition-colors"
+                        title="Copy room code"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <span className="inline-block px-3 py-1 bg-primary-100 text-primary-900 rounded-full text-xs font-mono font-bold">
                     {room.memberCount || 0} members
@@ -124,7 +259,11 @@ const Dashboard = (): FunctionComponent => {
                   <span className="text-xs text-primary-600 font-mono">
                     Created {new Date(room.createdAt).toLocaleDateString()}
                   </span>
-                  <Button variant="ghost" size="sm">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => enterRoom(room.id)}
+                  >
                     Enter
                   </Button>
                 </div>
@@ -188,8 +327,50 @@ const Dashboard = (): FunctionComponent => {
             <Button variant="ghost" onClick={() => setShowCreateRoom(false)} className="flex-1">
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleCreateRoom} className="flex-1">
+            <Button 
+              variant="primary" 
+              onClick={handleCreateRoom} 
+              className="flex-1"
+              isLoading={createRoomMutation.isPending}
+            >
               Create
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Join Room Modal */}
+      <Modal
+        isOpen={showJoinRoom}
+        onClose={() => setShowJoinRoom(false)}
+        title="Join Room"
+        size="md"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Room Code"
+            placeholder="Enter the room code"
+            value={roomCode}
+            onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+            maxLength={8}
+          />
+
+          <p className="text-sm text-primary-600 font-mono">
+            Ask the room creator for the room code to join
+          </p>
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="ghost" onClick={() => setShowJoinRoom(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={handleJoinRoom} 
+              className="flex-1"
+              isLoading={joinRoomMutation.isPending}
+              disabled={!roomCode.trim()}
+            >
+              Join Room
             </Button>
           </div>
         </div>

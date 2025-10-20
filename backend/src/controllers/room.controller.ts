@@ -27,6 +27,10 @@ export class RoomController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      console.log('Room creation request received');
+      console.log('Request body:', req.body);
+      console.log('User ID from auth:', req.userId);
+      
       const userId = req.userId;
       if (!userId) {
         throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
@@ -50,12 +54,13 @@ export class RoomController {
       }
 
       const room = await this.roomService.createRoom(
-        name,
         userId,
+        name,
         description,
         maxUsers
       );
 
+      console.log('Room created successfully:', room);
       res.status(201).json({
         success: true,
         message: 'Room created successfully',
@@ -127,6 +132,8 @@ export class RoomController {
         throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
       }
 
+      console.log('List user rooms request for user:', userId);
+
       const { page = 1, limit = 20 } = req.query;
 
       const validation = PaginationSchema.safeParse({
@@ -148,6 +155,8 @@ export class RoomController {
         validation.data.page,
         validation.data.limit
       );
+
+      console.log('Returning rooms result:', result);
 
       res.status(200).json({
         success: true,

@@ -38,9 +38,9 @@ function RoomPage() {
     const fetchRoomData = async () => {
       try {
         const [roomResponse, messagesResponse, membersResponse] = await Promise.all([
-          apiClient.get(`/rooms/${roomId}`),
-          apiClient.get(`/rooms/${roomId}/messages`),
-          apiClient.get(`/rooms/${roomId}/members`),
+          apiClient.getRoomById(roomId),
+          apiClient.getRoomMessages(roomId),
+          apiClient.getRoomMembers(roomId),
         ]);
 
         setRoomData(roomResponse.data);
@@ -96,7 +96,8 @@ function RoomPage() {
     if (!messageInput.trim() || !user) return;
 
     try {
-      const response = await apiClient.post(`/rooms/${roomId}/messages`, {
+      const response = await apiClient.sendMessage({
+        roomId,
         content: messageInput,
       });
 
@@ -133,7 +134,26 @@ function RoomPage() {
         <div className="max-w-full mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-serif font-bold text-foreground">{roomData?.name}</h1>
-            <p className="text-sm text-neutral">{members.length} members online</p>
+            <div className="flex items-center gap-4 mt-1">
+              <p className="text-sm text-neutral">{members.length} members online</p>
+              {roomData?.code && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-neutral">Room Code:</span>
+                  <span className="inline-block px-2 py-1 bg-primary-100 text-primary-900 rounded text-xs font-mono font-bold">
+                    {roomData.code}
+                  </span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(roomData.code)}
+                    className="text-primary-600 hover:text-primary-900 transition-colors"
+                    title="Copy room code"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <Button
             variant="ghost"

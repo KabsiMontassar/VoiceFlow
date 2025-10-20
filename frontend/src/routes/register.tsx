@@ -42,9 +42,8 @@ function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
-      const { confirmPassword, ...registerData } = data;
-      
-      await apiClient.register(registerData as any);
+      // Send all data including confirmPassword to the API
+      await apiClient.register(data);
       
       setToastMessage({ type: "success", text: "Registration successful! Redirecting to login..." });
       
@@ -54,7 +53,7 @@ function RegisterPage() {
     } catch (error: any) {
       setToastMessage({
         type: "error",
-        text: error.response?.data?.message || "Registration failed. Please try again.",
+        text: error.response?.data?.message || error.message || "Registration failed. Please try again.",
       });
     } finally {
       setIsLoading(false);
