@@ -74,6 +74,60 @@ function RoomPage() {
           messages: messagesList.length,
           members: membersResponse.data
         });
+
+        // Setup Socket.IO listeners AFTER connection and data loading
+        if (socketClient.isConnected()) {
+          console.log('Setting up socket listeners...');
+          
+          // Remove any existing listeners first
+          socketClient.off("message:received");
+          socketClient.off("room:user_joined");
+
+          socketClient.on("message:received", (data: any) => {
+            console.log('📨 Message received via socket:', data);
+            console.log('Current room ID:', roomId, 'Message room ID:', data.roomId);
+            if (data.roomId === roomId) {
+              console.log('✅ Adding message to current room');
+              addMessage(roomId, data);
+            } else {
+              console.log('❌ Message not for current room, ignoring');
+            }
+          });
+
+          socketClient.on("room:user_joined", (data: any) => {
+            console.log('👤 User joined room:', data);
+            if (data.roomId === roomId) {
+              setMembers((prev) => [...prev, data.user]);
+              setToastMessage({
+                type: "success",
+                text: `${data.user?.username || 'A user'} joined the room`,
+              });
+            }
+          });
+
+          // Join the room via socket
+          console.log('🏠 Joining room via socket:', roomId);
+          try {
+            const joinResponse = await socketClient.joinRoom(roomId);
+            console.log('✅ Successfully joined room:', joinResponse);
+          } catch (error: any) {
+            console.error('❌ Failed to join room:', error);
+            setToastMessage({
+              type: "error",
+              text: `Failed to join room: ${error.message}`,
+            });
+          }
+          
+          // Verify socket is in room
+          setTimeout(() => {
+            console.log('🔍 Socket connection status:', {
+              connected: socketClient.isConnected(),
+              currentRoom: roomId
+            });
+          }, 1000);
+        } else {
+          console.error('❌ Socket not connected, cannot set up listeners');
+        }
       } catch (error: any) {
         console.error('Error loading room data:', error);
         setToastMessage({
@@ -87,31 +141,6 @@ function RoomPage() {
 
     connectSocketAndFetchData();
 
-    // Setup Socket.IO listeners
-    socketClient.on("message:received", (data: any) => {
-      console.log('Message received via socket:', data);
-      if (data.roomId === roomId) {
-        addMessage(roomId, data);
-      }
-    });
-
-    socketClient.on("room:user_joined", (data: any) => {
-      console.log('User joined room:', data);
-      if (data.roomId === roomId) {
-        setMembers((prev) => [...prev, data.user]);
-        setToastMessage({
-          type: "success",
-          text: `${data.user?.username || 'A user'} joined the room`,
-        });
-      }
-    });
-
-    // Join the room via socket
-    if (socketClient.isConnected()) {
-      console.log('Joining room via socket:', roomId);
-      socketClient.joinRoom(roomId);
-    }
-
     return () => {
       console.log('Cleaning up socket listeners...');
       socketClient.off("message:received");
@@ -119,7 +148,9 @@ function RoomPage() {
       
       // Leave room when component unmounts
       if (socketClient.isConnected()) {
-        socketClient.leaveRoom(roomId);
+        socketClient.leaveRoom(roomId).catch((error) => {
+          console.error('Error leaving room:', error);
+        });
       }
     };
   }, [roomId, addMessage, user]);
@@ -133,35 +164,36 @@ function RoomPage() {
     e.preventDefault();
     if (!messageInput.trim() || !user) return;
 
-    try {
-      const response = await apiClient.sendMessage({
-        roomId,
-        content: messageInput,
-      });
-
-      console.log('Message sent successfully:', response);
-
-      if (response.success && response.data) {
-        // Message will be added via socket event when others receive it
-        // Add locally for immediate feedback
-        addMessage(roomId, response.data as any);
-        setMessageInput("");
-        
-        setToastMessage({
-          type: "success",
-          text: "Message sent successfully",
-        });
-      } else {
-        setToastMessage({
-          type: "error",
-          text: response.message || "Failed to send message",
-        });
-      }
-    } catch (error: any) {
-      console.error('Error sending message:', error);
+    // Check if socket is connected
+    if (!socketClient.isConnected()) {
+      console.error('❌ Socket not connected');
       setToastMessage({
         type: "error",
-        text: error.response?.data?.message || "Failed to send message",
+        text: "Socket not connected. Please refresh the page.",
+      });
+      return;
+    }
+
+    try {
+      console.log('📤 Sending message via socket...', {
+        roomId,
+        content: messageInput,
+        user: user.username,
+        socketConnected: socketClient.isConnected()
+      });
+      
+      // Send message via socket for real-time broadcasting
+      const messageResponse = await socketClient.sendMessage(roomId, messageInput, 'text');
+      console.log('✅ Message sent via socket successfully:', messageResponse);
+
+      // Clear input immediately for better UX
+      setMessageInput("");
+      
+    } catch (error: any) {
+      console.error('❌ Error sending message:', error);
+      setToastMessage({
+        type: "error",
+        text: error.message || "Failed to send message",
       });
     }
   };

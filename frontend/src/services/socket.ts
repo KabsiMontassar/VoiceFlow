@@ -67,20 +67,59 @@ export class SocketClient {
   }
 
   // Room events
-  joinRoom(roomId: string): void {
-    this.emit(SOCKET_EVENTS.ROOM_JOIN, { roomId });
+  joinRoom(roomId: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+
+      this.socket.emit(SOCKET_EVENTS.ROOM_JOIN, { roomId }, (response: any) => {
+        if (response && response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response?.message || 'Failed to join room'));
+        }
+      });
+    });
   }
 
-  leaveRoom(roomId: string): void {
-    this.emit(SOCKET_EVENTS.ROOM_LEAVE, { roomId });
+  leaveRoom(roomId: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+
+      this.socket.emit(SOCKET_EVENTS.ROOM_LEAVE, { roomId }, (response: any) => {
+        if (response && response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response?.message || 'Failed to leave room'));
+        }
+      });
+    });
   }
 
   // Message events
-  sendMessage(roomId: string, content: string, type: string = 'text'): void {
-    this.emit(SOCKET_EVENTS.MESSAGE_SEND, {
-      roomId,
-      content,
-      type,
+  sendMessage(roomId: string, content: string, type: string = 'text'): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+
+      this.socket.emit(SOCKET_EVENTS.MESSAGE_SEND, {
+        roomId,
+        content,
+        type,
+      }, (response: any) => {
+        if (response && response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response?.message || 'Failed to send message'));
+        }
+      });
     });
   }
 
