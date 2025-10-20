@@ -17,12 +17,13 @@ function RoomPage() {
   const { roomId } = useParams({ from: "/room/$roomId" });
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { messages, addMessage } = useMessageStore();
-  
+  const { currentRoomMessages, addMessage, setRoomMessages } = useMessageStore();
+
   const [messageInput, setMessageInput] = useState("");
   const [roomData, setRoomData] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -35,8 +36,22 @@ function RoomPage() {
 
   // Fetch room data and messages
   useEffect(() => {
-    const fetchRoomData = async () => {
+    const connectSocketAndFetchData = async () => {
       try {
+        // Connect socket if not connected
+        if (!socketClient.isConnected() && user) {
+          const token = localStorage.getItem('authToken') || localStorage.getItem('accessToken');
+          if (token) {
+            console.log('Connecting to socket with token...');
+            await socketClient.connect({
+              url: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+              token: token
+            });
+            setSocketConnected(true);
+            console.log('Socket connected successfully');
+          }
+        }
+
         const [roomResponse, messagesResponse, membersResponse] = await Promise.all([
           apiClient.getRoomById(roomId),
           apiClient.getRoomMessages(roomId),
@@ -47,11 +62,20 @@ function RoomPage() {
         setMembers((membersResponse.data as any) || []);
         
         // Load messages into store
-        const messagesList = (messagesResponse.data || []) as any[];
-        messagesList.forEach((msg: any) => {
-          addMessage(roomId, msg);
+        const messagesList = (messagesResponse.data as any)?.data || [];
+        console.log('Messages response structure:', {
+          fullResponse: messagesResponse,
+          extractedMessages: messagesList
+        });
+        setRoomMessages(roomId, messagesList);
+        
+        console.log('Room data loaded:', {
+          room: roomResponse.data,
+          messages: messagesList.length,
+          members: membersResponse.data
         });
       } catch (error: any) {
+        console.error('Error loading room data:', error);
         setToastMessage({
           type: "error",
           text: error.response?.data?.message || "Failed to load room",
@@ -61,35 +85,49 @@ function RoomPage() {
       }
     };
 
-    fetchRoomData();
+    connectSocketAndFetchData();
 
     // Setup Socket.IO listeners
-    socketClient.on("message:new", (data: any) => {
+    socketClient.on("message:received", (data: any) => {
+      console.log('Message received via socket:', data);
       if (data.roomId === roomId) {
         addMessage(roomId, data);
       }
     });
 
-    socketClient.on("user:joined", (data: any) => {
+    socketClient.on("room:user_joined", (data: any) => {
+      console.log('User joined room:', data);
       if (data.roomId === roomId) {
         setMembers((prev) => [...prev, data.user]);
         setToastMessage({
           type: "success",
-          text: `${data.user.username} joined the room`,
+          text: `${data.user?.username || 'A user'} joined the room`,
         });
       }
     });
 
+    // Join the room via socket
+    if (socketClient.isConnected()) {
+      console.log('Joining room via socket:', roomId);
+      socketClient.joinRoom(roomId);
+    }
+
     return () => {
-      socketClient.off("message:new");
-      socketClient.off("user:joined");
+      console.log('Cleaning up socket listeners...');
+      socketClient.off("message:received");
+      socketClient.off("room:user_joined");
+      
+      // Leave room when component unmounts
+      if (socketClient.isConnected()) {
+        socketClient.leaveRoom(roomId);
+      }
     };
   }, [roomId, addMessage, user]);
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [currentRoomMessages[roomId]]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,15 +139,26 @@ function RoomPage() {
         content: messageInput,
       });
 
-      // Response data is already in correct Message format
-      const newMessage = response.data as any;
+      console.log('Message sent successfully:', response);
 
-      addMessage(roomId, newMessage);
-      setMessageInput("");
-
-      // Emit via Socket.IO for real-time updates
-      socketClient.emit("message:send", newMessage);
+      if (response.success && response.data) {
+        // Message will be added via socket event when others receive it
+        // Add locally for immediate feedback
+        addMessage(roomId, response.data as any);
+        setMessageInput("");
+        
+        setToastMessage({
+          type: "success",
+          text: "Message sent successfully",
+        });
+      } else {
+        setToastMessage({
+          type: "error",
+          text: response.message || "Failed to send message",
+        });
+      }
     } catch (error: any) {
+      console.error('Error sending message:', error);
       setToastMessage({
         type: "error",
         text: error.response?.data?.message || "Failed to send message",
@@ -125,7 +174,7 @@ function RoomPage() {
     );
   }
 
-  const roomMessages = (messages as any).filter((m: any) => m.roomId === roomId) || [];
+  const roomMessages = currentRoomMessages[roomId] || [];
 
   return (
     <div className="min-h-screen bg-primary-50 flex flex-col">
@@ -183,7 +232,7 @@ function RoomPage() {
                         {message.author?.username || "Anonymous"}
                       </span>
                       <span className="text-xs text-neutral">
-                        {new Date(message.timestamp).toLocaleTimeString()}
+                        {new Date(message.createdAt).toLocaleTimeString()}
                       </span>
                     </div>
                     <p className="text-foreground mt-1">{message.content}</p>

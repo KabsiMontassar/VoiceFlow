@@ -107,29 +107,36 @@ export const setupSocketHandlers = (io: Server): void => {
       async (data: { roomId: string; content: string; type: string }, callback) => {
         try {
           if (!socket.userId) {
-            callback(socketSendError('UNAUTHORIZED', 'User not authenticated'));
+            callback && callback(socketSendError('UNAUTHORIZED', 'User not authenticated'));
             return;
           }
 
           const { roomId, content, type } = data;
 
-          const message: Partial<Message> = {
+          // Save message to database using the MessageService
+          const { MessageService } = await import('../services/message.service');
+          const messageService = new MessageService();
+          
+          const savedMessage = await messageService.sendMessage(
             roomId,
-            userId: socket.userId,
+            socket.userId,
             content,
-            type: type as Message['type'],
-            createdAt: new Date(),
-          };
+            type as any
+          );
 
-          // Broadcast message to room
-          io.to(roomId).emit(SOCKET_RESPONSES.MESSAGE_RECEIVED, message);
+          // Broadcast message to room (including sender)
+          io.to(roomId).emit(SOCKET_RESPONSES.MESSAGE_RECEIVED, savedMessage);
 
-          callback(socketSendSuccess(message));
+          if (callback) {
+            callback(socketSendSuccess(savedMessage));
+          }
 
           logger.info(`Message sent to room ${roomId} by ${socket.userId}`);
-        } catch (error) {
+        } catch (error: any) {
           logger.error('Error sending message', error);
-          callback(socketSendError('MESSAGE_SEND_ERROR', 'Failed to send message'));
+          if (callback) {
+            callback(socketSendError('MESSAGE_SEND_ERROR', error.message || 'Failed to send message'));
+          }
         }
       },
     );
