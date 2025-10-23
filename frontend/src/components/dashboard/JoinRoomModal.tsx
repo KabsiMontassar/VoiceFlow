@@ -37,7 +37,7 @@ export default function JoinRoomModal({
           maxLength={20}
         />
         
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-slate-600">
           Ask the room creator for the room code to join
         </p>
         

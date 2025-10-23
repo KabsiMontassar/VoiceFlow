@@ -28,11 +28,11 @@ export default function RecentActivity({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-serif font-semibold text-foreground">
+        <h2 className="text-xl font-serif font-semibold text-slate-900">
           Recent Activity
         </h2>
         {rooms.length > 6 && (
-          <Button variant="ghost" className="text-primary-600">
+          <Button variant="ghost" className="text-blue-600">
             View All Rooms
           </Button>
         )}
@@ -43,16 +43,16 @@ export default function RecentActivity({
           {recentRooms.map((room) => (
             <div
               key={room.id}
-              className="bg-white rounded-xl p-6 border border-primary-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+              className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
               onClick={() => onJoinRoom(room.id)}
             >
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                   <MessageSquare className="w-6 h-6 text-white" />
                 </div>
                 {room.code && (
                   <div 
-                    className="flex items-center gap-1 text-xs text-neutral-500 cursor-pointer hover:text-primary-600"
+                    className="flex items-center gap-1 text-xs text-slate-500 cursor-pointer hover:text-blue-600"
                     onClick={(e) => {
                       e.stopPropagation();
                       onCopyRoomCode(room.code!);
@@ -64,15 +64,15 @@ export default function RecentActivity({
                 )}
               </div>
               
-              <h3 className="font-semibold text-foreground mb-2 group-hover:text-primary-600 transition-colors">
+              <h3 className="font-semibold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
                 {room.name}
               </h3>
               
-              <p className="text-sm text-neutral-600 mb-4 line-clamp-2">
+              <p className="text-sm text-slate-600 mb-4 line-clamp-2">
                 {room.description || 'No description available'}
               </p>
               
-              <div className="flex items-center justify-between text-xs text-neutral-500">
+              <div className="flex items-center justify-between text-xs text-slate-500">
                 <span className="flex items-center gap-1">
                   <Users className="w-3 h-3" />
                   {room.memberCount || 0} members
@@ -86,17 +86,17 @@ export default function RecentActivity({
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-xl p-12 border border-primary-200 shadow-sm text-center">
-          <MessageSquare className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">
+        <div className="bg-white rounded-xl p-12 border border-slate-200 shadow-sm text-center">
+          <MessageSquare className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
             No rooms yet
           </h3>
-          <p className="text-neutral-600 mb-6">
+          <p className="text-slate-600 mb-6">
             Create your first room to start chatting with your team
           </p>
           <Button
             onClick={onCreateRoom}
-            className="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white border-0"
+            className="bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white border-0"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Room

@@ -38,11 +38,11 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps): F
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className="flex items-center justify-between p-6 border-b border-primary-100">
-            <h2 className="text-xl font-bold text-primary-950 font-serif">{title}</h2>
+          <div className="flex items-center justify-between p-6 border-b border-slate-100">
+            <h2 className="text-xl font-bold text-slate-950 font-serif">{title}</h2>
             <button
               onClick={onClose}
-              className="text-primary-500 hover:text-primary-950 transition-colors"
+              className="text-slate-500 hover:text-slate-950 transition-colors"
             >
               <svg
                 className="w-6 h-6"
