@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { Mic, MicOff } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Avatar from '../components/ui/Avatar';
@@ -175,7 +176,17 @@ export default function Room(): FunctionComponent {
               size="sm"
               onClick={() => setIsVoiceActive(!isVoiceActive)}
             >
-              {isVoiceActive ? '🎤 Mute' : '🔊 Unmute'}
+              {isVoiceActive ? (
+                <>
+                  <MicOff className="w-4 h-4 mr-2" />
+                  Mute
+                </>
+              ) : (
+                <>
+                  <Mic className="w-4 h-4 mr-2" />
+                  Unmute
+                </>
+              )}
             </Button>
 
             <button className="text-primary-600 hover:text-primary-950">

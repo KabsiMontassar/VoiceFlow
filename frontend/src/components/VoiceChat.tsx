@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Mic } from 'lucide-react';
 import { useWebRTCStore } from '../stores/webrtcStore';
 import { socketClient } from '../services/socket';
 import Button from './ui/Button';
@@ -305,9 +306,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ roomId, isActive, onToggle }) => 
           variant="primary"
           onClick={onToggle}
           isLoading={isJoining}
-          className="w-full"
+          className="w-full flex items-center justify-center gap-2"
         >
-          🎤 Join Voice Chat
+          <Mic className="w-4 h-4" />
+          Join Voice Chat
         </Button>
         {error && (
           <p className="text-sm text-red-600 font-mono mt-2">{error}</p>

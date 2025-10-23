@@ -1,4 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
+import { Mic, MessageSquare, Users } from 'lucide-react';
 import Button from '../components/ui/Button';
 import type { FunctionComponent } from '../common/types';
 
@@ -24,19 +25,25 @@ export const Home = (): FunctionComponent => {
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="p-6 bg-white/10 rounded-lg border border-white/20 backdrop-blur-sm">
-            <div className="text-3xl mb-3">🎤</div>
+            <div className="mb-3 flex justify-center">
+              <Mic className="w-8 h-8 text-primary-200" />
+            </div>
             <h3 className="text-lg font-bold text-white font-serif mb-2">HD Voice</h3>
             <p className="text-primary-200 text-sm font-mono">Crystal-clear audio for natural conversations</p>
           </div>
 
           <div className="p-6 bg-white/10 rounded-lg border border-white/20 backdrop-blur-sm">
-            <div className="text-3xl mb-3">💬</div>
+            <div className="mb-3 flex justify-center">
+              <MessageSquare className="w-8 h-8 text-primary-200" />
+            </div>
             <h3 className="text-lg font-bold text-white font-serif mb-2">Instant Chat</h3>
             <p className="text-primary-200 text-sm font-mono">Real-time text messaging with typing indicators</p>
           </div>
 
           <div className="p-6 bg-white/10 rounded-lg border border-white/20 backdrop-blur-sm">
-            <div className="text-3xl mb-3">👥</div>
+            <div className="mb-3 flex justify-center">
+              <Users className="w-8 h-8 text-primary-200" />
+            </div>
             <h3 className="text-lg font-bold text-white font-serif mb-2">Team Rooms</h3>
             <p className="text-primary-200 text-sm font-mono">Organize conversations in dedicated spaces</p>
           </div>
