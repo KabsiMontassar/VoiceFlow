@@ -8,6 +8,7 @@ import { useMessageStore } from "../stores/messageStore";
 import { useAuthStore } from "../stores/authStore";
 import { apiClient } from "../services/api";
 import { socketClient } from "../services/socket";
+import { MessageType } from "../../../shared/src/types";
 
 export const Route = createFileRoute("/room/$roomId")({
   component: RoomPage,
@@ -23,8 +24,8 @@ function RoomPage() {
   const [roomData, setRoomData] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [socketConnected, setSocketConnected] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [typingUsers, setTypingUsers] = useState<Array<{userId: string, username: string}>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Redirect if not authenticated
@@ -41,14 +42,26 @@ function RoomPage() {
         // Connect socket if not connected
         if (!socketClient.isConnected() && user) {
           const token = localStorage.getItem('authToken') || localStorage.getItem('accessToken');
+          
+          console.log('Token check:', {
+            authToken: localStorage.getItem('authToken'),
+            accessToken: localStorage.getItem('accessToken'),
+            finalToken: token,
+            user: user
+          });
+          
           if (token) {
-            console.log('Connecting to socket with token...');
+            console.log('Connecting to socket with token:', {
+              tokenPreview: token.substring(0, 20) + '...',
+              url: import.meta.env.VITE_API_URL || 'http://localhost:3000'
+            });
             await socketClient.connect({
               url: import.meta.env.VITE_API_URL || 'http://localhost:3000',
               token: token
             });
-            setSocketConnected(true);
             console.log('Socket connected successfully');
+          } else {
+            console.error('No authentication token found in localStorage');
           }
         }
 
@@ -75,48 +88,130 @@ function RoomPage() {
           members: membersResponse.data
         });
 
-        // Setup Socket.IO listeners AFTER connection and data loading
+        // Setup optimized Socket.IO listeners
         if (socketClient.isConnected()) {
-          console.log('Setting up socket listeners...');
+          console.log('Setting up optimized socket listeners...');
           
           // Remove any existing listeners first
-          socketClient.off("message:received");
-          socketClient.off("room:user_joined");
+          socketClient.off("new_message");
+          socketClient.off("user_joined_room");
+          socketClient.off("user_left_room");
+          socketClient.off("room_joined");
+          socketClient.off("room_messages");
+          socketClient.off("message_sent");
+          socketClient.off("user_typing");
+          socketClient.off("presence_update");
+          socketClient.off("offline_messages");
 
-          socketClient.on("message:received", (data: any) => {
-            console.log('📨 Message received via socket:', data);
-            console.log('Current room ID:', roomId, 'Message room ID:', data.roomId);
+          // Enhanced message handling
+          socketClient.on("new_message", (data: any) => {
+            console.log('📨 New message received via optimized socket:', data);
             if (data.roomId === roomId) {
               console.log('✅ Adding message to current room');
               addMessage(roomId, data);
-            } else {
-              console.log('❌ Message not for current room, ignoring');
             }
           });
 
-          socketClient.on("room:user_joined", (data: any) => {
+          // Message sent confirmation
+          socketClient.on("message_sent", (data: any) => {
+            console.log('✅ Message sent confirmation:', data);
+            // Update UI to show message as sent
+          });
+
+          // Room events
+          socketClient.on("room_joined", (data: any) => {
+            console.log('🏠 Room joined successfully:', data);
+            setToastMessage({
+              type: "success",
+              text: "Successfully joined room",
+            });
+          });
+
+          socketClient.on("room_messages", (messages: any[]) => {
+            console.log('📚 Room messages received:', messages.length);
+            if (messages.length > 0) {
+              setRoomMessages(roomId, messages);
+            }
+          });
+
+          socketClient.on("user_joined_room", (data: any) => {
             console.log('👤 User joined room:', data);
-            if (data.roomId === roomId) {
-              setMembers((prev) => [...prev, data.user]);
+            setMembers((prev) => {
+              const exists = prev.some(member => member.id === data.userId);
+              if (!exists) {
+                return [...prev, { id: data.userId, username: data.user?.username, status: 'online' }];
+              }
+              return prev;
+            });
+            setToastMessage({
+              type: "success",
+              text: `${data.user?.username || 'A user'} joined the room`,
+            });
+          });
+
+          socketClient.on("user_left_room", (data: any) => {
+            console.log('👋 User left room:', data);
+            setMembers((prev) => prev.filter(member => member.id !== data.userId));
+            setToastMessage({
+              type: "success",
+              text: `${data.user?.username || 'A user'} left the room`,
+            });
+          });
+
+          // Enhanced typing indicators
+          socketClient.on("user_typing", (data: any) => {
+            console.log('⌨️ User typing:', data);
+            
+            // Don't show typing indicator for current user
+            if (user && data.userId === user.id) {
+              return;
+            }
+            
+            if (data.isTyping) {
+              setTypingUsers(prev => {
+                const existingUser = prev.find(u => u.userId === data.userId);
+                if (!existingUser && data.user) {
+                  return [...prev, {
+                    userId: data.userId,
+                    username: data.user.username || data.user.email || 'Anonymous'
+                  }];
+                }
+                return prev;
+              });
+            } else {
+              setTypingUsers(prev => prev.filter(u => u.userId !== data.userId));
+            }
+          });
+
+          // Presence updates
+          socketClient.on("presence_update", (data: any) => {
+            console.log('👥 Presence update:', data);
+            setMembers((prev) => prev.map(member => 
+              member.id === data.userId 
+                ? { ...member, status: data.status }
+                : member
+            ));
+          });
+
+          // Offline messages delivery
+          socketClient.on("offline_messages", (messages: any[]) => {
+            console.log('📮 Offline messages received:', messages.length);
+            messages.forEach(msg => {
+              if (msg.roomId === roomId) {
+                addMessage(roomId, msg);
+              }
+            });
+            if (messages.length > 0) {
               setToastMessage({
                 type: "success",
-                text: `${data.user?.username || 'A user'} joined the room`,
+                text: `Received ${messages.length} offline messages`,
               });
             }
           });
 
-          // Join the room via socket
-          console.log('🏠 Joining room via socket:', roomId);
-          try {
-            const joinResponse = await socketClient.joinRoom(roomId);
-            console.log('✅ Successfully joined room:', joinResponse);
-          } catch (error: any) {
-            console.error('❌ Failed to join room:', error);
-            setToastMessage({
-              type: "error",
-              text: `Failed to join room: ${error.message}`,
-            });
-          }
+          // Join the room via optimized socket
+          console.log('🏠 Joining room via optimized socket:', roomId);
+          socketClient.joinRoom(roomId);
           
           // Verify socket is in room
           setTimeout(() => {
@@ -142,15 +237,20 @@ function RoomPage() {
     connectSocketAndFetchData();
 
     return () => {
-      console.log('Cleaning up socket listeners...');
-      socketClient.off("message:received");
-      socketClient.off("room:user_joined");
+      console.log('Cleaning up optimized socket listeners...');
+      socketClient.off("new_message");
+      socketClient.off("user_joined_room");
+      socketClient.off("user_left_room");
+      socketClient.off("room_joined");
+      socketClient.off("room_messages");
+      socketClient.off("message_sent");
+      socketClient.off("user_typing");
+      socketClient.off("presence_update");
+      socketClient.off("offline_messages");
       
       // Leave room when component unmounts
       if (socketClient.isConnected()) {
-        socketClient.leaveRoom(roomId).catch((error) => {
-          console.error('Error leaving room:', error);
-        });
+        socketClient.leaveRoom(roomId);
       }
     };
   }, [roomId, addMessage, user]);
@@ -160,7 +260,7 @@ function RoomPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentRoomMessages[roomId]]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim() || !user) return;
 
@@ -169,33 +269,41 @@ function RoomPage() {
       console.error('❌ Socket not connected');
       setToastMessage({
         type: "error",
-        text: "Socket not connected. Please refresh the page.",
-      });
-      return;
-    }
-
-    try {
-      console.log('📤 Sending message via socket...', {
-        roomId,
-        content: messageInput,
-        user: user.username,
-        socketConnected: socketClient.isConnected()
-      });
-      
-      // Send message via socket for real-time broadcasting
-      const messageResponse = await socketClient.sendMessage(roomId, messageInput, 'text');
-      console.log('✅ Message sent via socket successfully:', messageResponse);
-
-      // Clear input immediately for better UX
-      setMessageInput("");
-      
-    } catch (error: any) {
-      console.error('❌ Error sending message:', error);
-      setToastMessage({
-        type: "error",
-        text: error.message || "Failed to send message",
+        text: "Socket not connected. Message queued for delivery.",
       });
     }
+
+    console.log('📤 Sending message via optimized socket...', {
+      roomId,
+      content: messageInput,
+      user: user.username,
+      socketConnected: socketClient.isConnected()
+    });
+    
+    // Generate temporary ID for optimistic UI update
+    const tempId = Date.now().toString();
+    
+    // Optimistic UI update
+    const tempMessage = {
+      id: tempId,
+      content: messageInput,
+      roomId,
+      userId: user.id,
+      author: user,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      type: MessageType.TEXT,
+      fileId: null
+    };
+    
+    // Add message immediately for better UX
+    addMessage(roomId, tempMessage);
+    
+    // Send message via optimized socket (with offline queueing)
+    socketClient.sendMessage(roomId, messageInput, MessageType.TEXT, tempId);
+    
+    // Clear input immediately
+    setMessageInput("");
   };
 
   if (isLoading) {
@@ -281,13 +389,44 @@ function RoomPage() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Typing Indicators */}
+          {typingUsers.length > 0 && (
+            <div className="mb-3 text-sm text-neutral">
+              {typingUsers.length === 1 ? (
+                <span>{typingUsers[0].username} is typing...</span>
+              ) : typingUsers.length === 2 ? (
+                <span>{typingUsers[0].username} and {typingUsers[1].username} are typing...</span>
+              ) : (
+                <span>{typingUsers.slice(0, 2).map(u => u.username).join(', ')} and {typingUsers.length - 2} more are typing...</span>
+              )}
+              <span className="ml-2 inline-flex space-x-1">
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              </span>
+            </div>
+          )}
+
           {/* Message Input */}
           <form onSubmit={handleSendMessage} className="flex gap-3">
             <Input
               type="text"
               placeholder="Type your message..."
               value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
+              onChange={(e) => {
+                setMessageInput(e.target.value);
+                
+                // Trigger typing indicator
+                if (e.target.value.trim()) {
+                  socketClient.typingStart(roomId);
+                } else {
+                  socketClient.typingStop(roomId);
+                }
+              }}
+              onBlur={() => {
+                // Stop typing when input loses focus
+                socketClient.typingStop(roomId);
+              }}
               className="flex-1"
             />
             <Button
