@@ -115,20 +115,8 @@ export function ChatInterface() {
             console.log('Processed members list:', membersList);
             setMembers(membersList);
             
-            // Ensure current user is in the members list
-            const currentUserInMembers = membersList.find(member => member.id === user.id);
-            if (!currentUserInMembers) {
-              console.log('Adding current user to members list');
-              setMembers(prev => [...prev, {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                role: 'member'
-              }]);
-            }
-            
-            // Initialize active users - current user is active
-            // Other users will be marked active when they actually join the room via socket events
+            // Initialize active users with ONLY the current user
+            // Other users' active status will be determined by the room_presence event from server
             setActiveUsers(new Set([user.id]));
           }
         } catch (error) {
@@ -242,9 +230,9 @@ export function ChatInterface() {
 
     const handleUserLeftRoom = (data: any) => {
       console.log('User left room:', data);
-      setMembers(prev => prev.filter(m => m.id !== data.userId));
+      // DON'T remove the user from members list - just mark them as inactive
+      // Only remove from active users set
       setTypingUsers(prev => prev.filter(u => u.userId !== data.userId));
-      // Remove user from active users
       setActiveUsers(prev => {
         const newSet = new Set(prev);
         newSet.delete(data.userId);
@@ -268,7 +256,7 @@ export function ChatInterface() {
     };
 
     const handleRoomPresenceUpdate = (data: any) => {
-      console.log('Room presence update:', data);
+      console.log('Room presence update (heartbeat):', data);
       if (data.users && Array.isArray(data.users)) {
         // Update active users based on room presence data
         const activeUserIds = data.users
@@ -276,14 +264,41 @@ export function ChatInterface() {
             userPresence.status === 'active' || 
             userPresence.status === 'away'
           )
-          .map((userPresence: any) => userPresence.userId);
+          .map((userPresence: any) => userPresence.userId as string);
         
-        // Always ensure current user stays active if they're in the room
-        if (user && !activeUserIds.includes(user.id)) {
-          activeUserIds.push(user.id);
-        }
+        // Update active users set efficiently
+        setActiveUsers(prev => {
+          const newSet = new Set<string>(activeUserIds);
+          // Only update if there's a change to avoid unnecessary re-renders
+          if (prev.size !== newSet.size || !Array.from(prev).every(id => newSet.has(id))) {
+            return newSet;
+          }
+          return prev;
+        });
         
-        setActiveUsers(new Set(activeUserIds));
+        // Also merge any new users into the members list
+        const usersWithInfo = data.users.map((userPresence: any) => ({
+          id: userPresence.userId,
+          username: userPresence.username || userPresence.userId,
+          email: userPresence.email || '',
+          status: userPresence.status
+        }));
+        
+        // Merge with existing members, prioritizing existing data
+        setMembers(prev => {
+          const existingMap = new Map(prev.map(m => [m.id, m]));
+          let hasChanges = false;
+          
+          usersWithInfo.forEach((u: any) => {
+            if (!existingMap.has(u.id)) {
+              existingMap.set(u.id, u);
+              hasChanges = true;
+            }
+          });
+          
+          // Only update if there are actual changes
+          return hasChanges ? Array.from(existingMap.values()) : prev;
+        });
       }
     };
 
@@ -291,7 +306,7 @@ export function ChatInterface() {
     const handleRoomPresence = (data: any) => {
       console.log('Initial room presence:', data);
       if (data.users && Array.isArray(data.users)) {
-        // Update active users based on initial room presence data
+        // Set active users based on initial room presence data
         const activeUserIds = data.users
           .filter((userPresence: any) => 
             userPresence.status === 'active' || 
@@ -299,28 +314,25 @@ export function ChatInterface() {
           )
           .map((userPresence: any) => userPresence.userId);
         
-        // Always ensure current user stays active if they're in the room
-        if (user && !activeUserIds.includes(user.id)) {
-          activeUserIds.push(user.id);
-        }
-        
         setActiveUsers(new Set(activeUserIds));
         
-        // Also update members list if we have user information
-        const usersWithInfo = data.users
-          .filter((userPresence: any) => userPresence.userId)
-          .map((userPresence: any) => ({
-            id: userPresence.userId,
-            username: userPresence.username || userPresence.userId,
-            email: userPresence.email || '',
-            status: userPresence.status
-          }));
+        // Update members list with presence information
+        const usersWithInfo = data.users.map((userPresence: any) => ({
+          id: userPresence.userId,
+          username: userPresence.username || userPresence.userId,
+          email: userPresence.email || '',
+          status: userPresence.status
+        }));
           
         // Merge with existing members, prioritizing existing data
         setMembers(prev => {
-          const existingIds = new Set(prev.map(m => m.id));
-          const newMembers = usersWithInfo.filter((u: any) => !existingIds.has(u.id));
-          return [...prev, ...newMembers];
+          const existingMap = new Map(prev.map(m => [m.id, m]));
+          usersWithInfo.forEach((u: any) => {
+            if (!existingMap.has(u.id)) {
+              existingMap.set(u.id, u);
+            }
+          });
+          return Array.from(existingMap.values());
         });
       }
     };

@@ -36,6 +36,7 @@ export class OptimizedSocketHandlers {
   private io: SocketServer;
   private typingDebounceMap = new Map<string, TypingDebounceInfo>();
   private connectionPool = new Map<string, Set<string>>(); // userId -> socketIds
+  private roomPresenceHeartbeatIntervals = new Map<string, NodeJS.Timeout>(); // roomId -> interval
   
   // Rate limiting configuration
   private readonly RATE_LIMITS = {
@@ -47,6 +48,9 @@ export class OptimizedSocketHandlers {
   // Debounce configuration
   private readonly TYPING_DEBOUNCE_DELAY = 1000; // 1 second
   private readonly TYPING_STOP_DELAY = 3000;     // 3 seconds
+  
+  // Presence heartbeat configuration
+  private readonly PRESENCE_HEARTBEAT_INTERVAL = 5000; // 5 seconds
 
   constructor(io: SocketServer) {
     this.io = io;
@@ -409,21 +413,29 @@ export class OptimizedSocketHandlers {
       const recentMessages = await redisService.getCache(`messages:${roomId}`) || [];
       socket.emit('room_messages', recentMessages);
 
-      // CRITICAL: Send current room presence to the newly joined user
+      // CRITICAL: Send current room presence to the newly joined user FIRST
       // This ensures the new user sees who's already online in the room
       const currentRoomPresence = await presenceService.getRoomPresence(roomId);
       socket.emit('room_presence', currentRoomPresence);
 
-      // Notify room about new member (AFTER sending current presence)
+      // Small delay to ensure the client processes the initial presence before the update
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Notify OTHER users in the room about the new member
       socket.to(roomId).emit('user_joined_room', {
         userId,
         user: socket.user,
         timestamp: new Date()
       });
 
-      // Also broadcast updated room presence to all users in room
-      // This ensures all users get the updated presence including the new user
+      // Broadcast updated room presence to ALL users in the room (including the new user)
+      // This ensures everyone has the complete, up-to-date presence list
       await this.broadcastRoomPresenceToAll(roomId);
+
+      // Start presence heartbeat for this room if not already running
+      this.startRoomPresenceHeartbeat(roomId);
+
+      logger.debug(`User ${userId} joined room ${roomId}, broadcasted presence to all`);
 
       logger.debug(`User ${userId} joined room ${roomId}`);
 
@@ -458,6 +470,13 @@ export class OptimizedSocketHandlers {
 
       // Confirm to user
       socket.emit('room_left', { roomId });
+
+      // Check if room is now empty and stop heartbeat if so
+      const roomSockets = await this.io.in(roomId).fetchSockets();
+      if (roomSockets.length === 0) {
+        this.stopRoomPresenceHeartbeat(roomId);
+        logger.debug(`Room ${roomId} is now empty, stopped presence heartbeat`);
+      }
 
       logger.debug(`User ${userId} left room ${roomId}`);
 
@@ -706,13 +725,66 @@ export class OptimizedSocketHandlers {
   }
 
   /**
+   * Start presence heartbeat for a room
+   * Broadcasts room presence every 5 seconds to keep all clients in sync
+   */
+  private startRoomPresenceHeartbeat(roomId: string): void {
+    // Don't create duplicate heartbeats
+    if (this.roomPresenceHeartbeatIntervals.has(roomId)) {
+      return;
+    }
+
+    logger.info(`Starting presence heartbeat for room ${roomId}`);
+
+    const heartbeatInterval = setInterval(async () => {
+      try {
+        // Check if room still has users
+        const roomSockets = await this.io.in(roomId).fetchSockets();
+        
+        if (roomSockets.length === 0) {
+          // Room is empty, stop heartbeat
+          this.stopRoomPresenceHeartbeat(roomId);
+          logger.debug(`Room ${roomId} empty, stopping heartbeat`);
+          return;
+        }
+
+        // Broadcast current room presence to all users in the room
+        await this.broadcastRoomPresenceToAll(roomId);
+        
+      } catch (error) {
+        logger.error(`Error in presence heartbeat for room ${roomId}:`, error);
+      }
+    }, this.PRESENCE_HEARTBEAT_INTERVAL);
+
+    this.roomPresenceHeartbeatIntervals.set(roomId, heartbeatInterval);
+  }
+
+  /**
+   * Stop presence heartbeat for a room
+   */
+  private stopRoomPresenceHeartbeat(roomId: string): void {
+    const interval = this.roomPresenceHeartbeatIntervals.get(roomId);
+    
+    if (interval) {
+      clearInterval(interval);
+      this.roomPresenceHeartbeatIntervals.delete(roomId);
+      logger.info(`Stopped presence heartbeat for room ${roomId}`);
+    }
+  }
+
+  /**
    * Broadcast room presence to all users in the room
    */
   private async broadcastRoomPresenceToAll(roomId: string): Promise<void> {
     try {
       const roomPresence = await presenceService.getRoomPresence(roomId);
       this.io.to(roomId).emit('room_presence_update', roomPresence);
-      logger.debug(`Broadcasted room presence update to room ${roomId}`);
+      logger.debug(`Broadcasted room presence update to room ${roomId}`, {
+        roomId,
+        userCount: roomPresence.users.length,
+        activeUsers: roomPresence.activeUsers,
+        users: roomPresence.users.map(u => ({ userId: u.userId, status: u.status }))
+      });
     } catch (error) {
       logger.error('Broadcast room presence to all error:', error);
     }
@@ -768,6 +840,14 @@ export class OptimizedSocketHandlers {
       clearTimeout(debounceInfo.timeout);
     }
     this.typingDebounceMap.clear();
+    
+    // Clear all room presence heartbeat intervals
+    for (const [roomId, interval] of this.roomPresenceHeartbeatIntervals.entries()) {
+      clearInterval(interval);
+      logger.debug(`Cleared presence heartbeat for room ${roomId}`);
+    }
+    this.roomPresenceHeartbeatIntervals.clear();
+    
     this.connectionPool.clear();
 
     logger.info('Optimized socket handlers cleaned up');

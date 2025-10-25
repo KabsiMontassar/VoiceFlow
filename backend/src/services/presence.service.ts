@@ -182,26 +182,22 @@ export class PresenceService {
       }
       this.userRooms.get(userId)!.add(roomId);
 
-      // Update presence with current room
-      const presence = this.presenceCache.get(userId);
+      // Update or create presence with current room
+      let presence = this.presenceCache.get(userId);
+      const { jwtService } = await import('../utils/jwt');
+      const isAuthenticated = await jwtService.isUserActive(userId);
+      
       if (presence) {
         presence.currentRoom = roomId;
         presence.lastSeen = new Date();
-        // Ensure user is marked as active when joining a room (if authenticated)
-        const { jwtService } = await import('../utils/jwt');
-        const isAuthenticated = await jwtService.isUserActive(userId);
-        
+        // User is joining a room, ensure they are marked as active if authenticated
         if (isAuthenticated) {
           presence.status = UserPresenceStatus.ACTIVE;
         }
-        
         this.presenceCache.set(userId, presence);
         await redisService.setUserPresence(userId, presence.status, roomId);
       } else {
         // Create new presence if it doesn't exist
-        const { jwtService } = await import('../utils/jwt');
-        const isAuthenticated = await jwtService.isUserActive(userId);
-        
         const newPresence: UserPresence = {
           userId,
           status: isAuthenticated ? UserPresenceStatus.ACTIVE : UserPresenceStatus.INACTIVE,
@@ -212,7 +208,10 @@ export class PresenceService {
         await redisService.setUserPresence(userId, newPresence.status, roomId);
       }
 
-      logger.debug(`User ${userId} joined room ${roomId}`);
+      // Broadcast presence update to the room
+      this.broadcastPresenceUpdate(userId, isAuthenticated ? UserPresenceStatus.ACTIVE : UserPresenceStatus.INACTIVE);
+
+      logger.debug(`User ${userId} joined room ${roomId}, status: ${isAuthenticated ? 'ACTIVE' : 'INACTIVE'}`);
     } catch (error) {
       logger.error('Handle user join room error:', error);
     }
@@ -398,7 +397,34 @@ export class PresenceService {
       let activeUsers = 0;
 
       for (const userId of userIds) {
-        const presence = this.presenceCache.get(userId);
+        let presence = this.presenceCache.get(userId);
+        
+        // If no presence in cache, check if user has active sockets
+        if (!presence) {
+          const userSockets = this.userSockets.get(userId);
+          if (userSockets && userSockets.size > 0) {
+            // User is connected, create presence
+            const { jwtService } = await import('../utils/jwt');
+            const isAuthenticated = await jwtService.isUserActive(userId);
+            
+            presence = {
+              userId,
+              status: isAuthenticated ? UserPresenceStatus.ACTIVE : UserPresenceStatus.INACTIVE,
+              lastSeen: new Date(),
+              currentRoom: roomId
+            };
+            this.presenceCache.set(userId, presence);
+          } else {
+            // User is not connected, mark as inactive
+            presence = {
+              userId,
+              status: UserPresenceStatus.INACTIVE,
+              lastSeen: new Date(),
+              currentRoom: roomId
+            };
+          }
+        }
+        
         if (presence) {
           users.push(presence);
           if (presence.status === UserPresenceStatus.ACTIVE) {
