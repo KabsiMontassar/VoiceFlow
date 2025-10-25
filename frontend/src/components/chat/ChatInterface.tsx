@@ -42,11 +42,6 @@ export function ChatInterface() {
   
   const room = rooms.find(r => r.id === roomId);
   const messages = Array.isArray(currentRoomMessages[roomId]) ? currentRoomMessages[roomId] : [];
-  
-  // Debug logging
-  console.log('Current room messages for', roomId, ':', currentRoomMessages[roomId]);
-  console.log('Messages array:', messages);
-  console.log('Messages length:', messages.length);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -68,7 +63,6 @@ export function ChatInterface() {
         // First, ensure user is joined to the room
         try {
           await apiClient.joinRoom(roomId);
-          console.log('Successfully joined room:', roomId);
         } catch (error: any) {
           // Ignore "already in room" errors
           if (!error.message?.includes('Already in this room')) {
@@ -77,11 +71,9 @@ export function ChatInterface() {
         }
         
         // Load messages for this room
-        console.log('Loading messages for room:', roomId);
         const messagesResponse = await apiClient.getRoomMessages(roomId);
         
         if (messagesResponse.success && messagesResponse.data) {
-          console.log('Messages loaded:', messagesResponse.data);
           // Extract the messages array from the response data
           const responseData = messagesResponse.data as any;
           const messages = Array.isArray(responseData.data) ? responseData.data : responseData;
@@ -93,7 +85,6 @@ export function ChatInterface() {
           const membersResponse = await apiClient.getRoomMembers(roomId);
           if (membersResponse.success && membersResponse.data) {
             const membersData = membersResponse.data as any[];
-            console.log('Raw members data:', membersData);
             
             // Extract user data from the RoomUser structure
             const membersList = membersData.map(memberData => {
@@ -112,7 +103,6 @@ export function ChatInterface() {
               }
             });
             
-            console.log('Processed members list:', membersList);
             setMembers(membersList);
             
             // Initialize active users with ONLY the current user
@@ -137,19 +127,45 @@ export function ChatInterface() {
   useEffect(() => {
     if (!roomId || !socketClient.isConnected()) return;
 
-    console.log('Setting up socket handlers for room:', roomId);
-
     // Join room
     socketClient.joinRoom(roomId);
 
     // Helper to ensure MessageWithAuthor shape
     const toMessageWithAuthor = (message: any) => {
+      // First check if message already has author info from server
+      if (message.author) {
+        return {
+          ...message,
+          createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
+          updatedAt: message.updatedAt ? new Date(message.updatedAt) : new Date(),
+        };
+      }
+
+      // If message has user info from socket (socket.user)
+      if (message.user) {
+        return {
+          ...message,
+          author: {
+            id: message.user.id || message.user.userId,
+            username: message.user.username,
+            email: message.user.email,
+            avatarUrl: null,
+            status: 'active',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
+          updatedAt: message.updatedAt ? new Date(message.updatedAt) : new Date(),
+        };
+      }
+
+      // Fallback: try to find from members list
       const findMember = members.find((m: any) => m.id === message.userId);
       const author = findMember
         ? {
             id: findMember.id,
-            username: findMember.username || 'User',
-            email: findMember.email || '',
+            username: findMember.username,
+            email: findMember.email,
             avatarUrl: findMember.avatarUrl || null,
             status: findMember.status || 'inactive',
             createdAt: findMember.createdAt ? new Date(findMember.createdAt) : new Date(),
@@ -157,7 +173,7 @@ export function ChatInterface() {
           }
         : {
             id: message.userId,
-            username: 'User',
+            username: message.userId, // Use userId as fallback instead of 'User'
             email: '',
             avatarUrl: null,
             status: 'inactive',
@@ -175,14 +191,12 @@ export function ChatInterface() {
 
     // Message handlers
     const handleNewMessage = (message: any) => {
-      console.log('Received new message:', message);
       if (message.roomId === roomId) {
         addMessage(roomId, toMessageWithAuthor(message) as any);
       }
     };
 
     const handleMessageSent = (response: any) => {
-      console.log('Message sent confirmation:', response);
       if (response.success && response.data && response.data.roomId === roomId) {
         // Update the temporary message with the real one from server
         addMessage(roomId, toMessageWithAuthor(response.data) as any);
@@ -209,7 +223,6 @@ export function ChatInterface() {
     };
 
     const handleUserJoinedRoom = (data: any) => {
-      console.log('User joined room:', data);
       if (data.user) {
         setMembers(prev => {
           const existing = prev.find(m => m.id === data.user.id);
@@ -229,7 +242,6 @@ export function ChatInterface() {
     };
 
     const handleUserLeftRoom = (data: any) => {
-      console.log('User left room:', data);
       // DON'T remove the user from members list - just mark them as inactive
       // Only remove from active users set
       setTypingUsers(prev => prev.filter(u => u.userId !== data.userId));
@@ -241,7 +253,6 @@ export function ChatInterface() {
     };
 
     const handlePresenceUpdate = (data: any) => {
-      console.log('Presence update:', data);
       if (data.userId && data.status) {
         setActiveUsers(prev => {
           const newSet = new Set(prev);
@@ -256,7 +267,6 @@ export function ChatInterface() {
     };
 
     const handleRoomPresenceUpdate = (data: any) => {
-      console.log('Room presence update (heartbeat):', data);
       if (data.users && Array.isArray(data.users)) {
         // Update active users based on room presence data
         const activeUserIds = data.users
@@ -304,7 +314,6 @@ export function ChatInterface() {
 
     // Handle initial room presence when joining
     const handleRoomPresence = (data: any) => {
-      console.log('Initial room presence:', data);
       if (data.users && Array.isArray(data.users)) {
         // Set active users based on initial room presence data
         const activeUserIds = data.users
@@ -367,16 +376,7 @@ export function ChatInterface() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!messageInput.trim() || !user || !roomId) {
-      console.log('Cannot send message: missing data', {
-        hasInput: !!messageInput.trim(),
-        hasUser: !!user,
-        hasRoomId: !!roomId
-      });
-      return;
-    }
-
-    console.log('Sending message:', messageInput.trim());
+    if (!messageInput.trim() || !user || !roomId) return;
 
     const tempId = Date.now().toString();
     const tempMessage = {
@@ -400,6 +400,9 @@ export function ChatInterface() {
     // Clear input and stop typing
     setMessageInput('');
     socketClient.typingStop(roomId);
+    
+    // Close emoji picker when sending message
+    setShowEmojiPicker(false);
     
     // Focus input for better UX
     inputRef.current?.focus();
@@ -425,7 +428,7 @@ export function ChatInterface() {
   const handleEmojiSelect = (emoji: string) => {
     const newValue = messageInput + emoji;
     setMessageInput(newValue);
-    setShowEmojiPicker(false);
+    // Don't close picker - user can select multiple emojis
     
     // Focus input and trigger typing
     inputRef.current?.focus();
@@ -700,7 +703,7 @@ export function ChatInterface() {
               isOpen={showEmojiPicker}
               onClose={() => setShowEmojiPicker(false)}
               onEmojiSelect={handleEmojiSelect}
-              position={{ bottom: 80, right: 60 }}
+              position={{ bottom: 70, right: 20 }}
             />
 
             {/* Loading indicator */}

@@ -84,37 +84,47 @@ class ApiClient {
   }
 
   private loadTokens(): void {
-    try {
-      this.accessToken = localStorage.getItem('accessToken');
-      this.refreshToken = localStorage.getItem('refreshToken');
-    } catch {
-      this.clearTokens();
-    }
+    // Don't load from localStorage anymore - Zustand handles persistence
+    // This method is kept for backward compatibility but does nothing
   }
 
-  private saveTokens(): void {
+  setAccessToken(token: string): void {
+    this.accessToken = token;
+    // Don't save to localStorage
+  }
+
+  setRefreshToken(token: string): void {
+    this.refreshToken = token;
+    // Don't save to localStorage
+  }
+
+  setTokens(accessToken: string, refreshToken: string): void {
+    // Legacy method - still saves to localStorage for backward compatibility
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    this.saveTokensLegacy();
+  }
+
+  // New methods that don't use localStorage
+  setTokensOnly(accessToken: string, refreshToken: string): void {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    // Don't save to localStorage - Zustand persist handles it
+  }
+
+  clearTokensOnly(): void {
+    this.accessToken = null;
+    this.refreshToken = null;
+    // Don't clear localStorage - Zustand persist handles it
+  }
+
+  private saveTokensLegacy(): void {
     if (this.accessToken) {
       localStorage.setItem('accessToken', this.accessToken);
     }
     if (this.refreshToken) {
       localStorage.setItem('refreshToken', this.refreshToken);
     }
-  }
-
-  setAccessToken(token: string): void {
-    this.accessToken = token;
-    this.saveTokens();
-  }
-
-  setRefreshToken(token: string): void {
-    this.refreshToken = token;
-    this.saveTokens();
-  }
-
-  setTokens(accessToken: string, refreshToken: string): void {
-    this.accessToken = accessToken;
-    this.refreshToken = refreshToken;
-    this.saveTokens();
   }
 
   clearTokens(): void {

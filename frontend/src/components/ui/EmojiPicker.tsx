@@ -109,7 +109,8 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
 
   const handleEmojiClick = (emoji: string) => {
     onEmojiSelect(emoji);
-    onClose();
+    // Don't close picker - let user select multiple emojis
+    // Picker only closes via close button or send message
   };
 
   const filteredEmojis = searchQuery
@@ -130,11 +131,11 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
   return (
     <div
       ref={pickerRef}
-      className="bg-white border border-neutral-200 rounded-lg shadow-lg z-50 w-80 h-96"
-      style={positionStyles}
+      className="bg-white border border-neutral-200 rounded-lg shadow-lg z-50 w-80 flex flex-col"
+      style={{ ...positionStyles, height: '400px' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-neutral-200">
+      <div className="flex items-center justify-between p-3 border-b border-neutral-200 flex-shrink-0">
         <h3 className="text-sm font-medium text-neutral-900">Emoji Picker</h3>
         <button
           onClick={onClose}
@@ -145,7 +146,7 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
       </div>
 
       {/* Search */}
-      <div className="p-3 border-b border-neutral-200">
+      <div className="p-3 border-b border-neutral-200 flex-shrink-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
           <input
@@ -160,7 +161,7 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
 
       {/* Categories */}
       {!searchQuery && (
-        <div className="flex overflow-x-auto border-b border-neutral-200">
+        <div className="flex overflow-x-auto border-b border-neutral-200 flex-shrink-0">
           {EMOJI_CATEGORIES.map((category, index) => (
             <button
               key={category.name}
@@ -177,8 +178,8 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
         </div>
       )}
 
-      {/* Emoji Grid */}
-      <div className="flex-1 overflow-y-auto p-3">
+      {/* Emoji Grid - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-3 min-h-0">
         <div className="grid grid-cols-8 gap-1">
           {filteredEmojis.map((emoji, index) => (
             <button

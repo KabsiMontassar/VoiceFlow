@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { createFileRoute } from '@tanstack/react-router';
 import { 
@@ -23,8 +23,15 @@ function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { login } = useAuthStore();
+  const { login, isAuthenticated, isHydrated } = useAuthStore();
   const navigate = useNavigate();
+
+  // Auto-redirect to dashboard if already logged in
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      navigate({ to: '/dashboard' });
+    }
+  }, [isAuthenticated, isHydrated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

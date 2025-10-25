@@ -1,10 +1,20 @@
 import { useNavigate } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import { Mic, MessageSquare, Users, ArrowRight } from 'lucide-react';
 import Button from '../components/ui/Button';
 import type { FunctionComponent } from '../common/types';
+import { useAuthStore } from '../stores/authStore';
 
 export const Home = (): FunctionComponent => {
   const navigate = useNavigate();
+  const { isAuthenticated, isHydrated } = useAuthStore();
+
+  // Auto-redirect to dashboard if already logged in
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      navigate({ to: '/dashboard' });
+    }
+  }, [isAuthenticated, isHydrated, navigate]);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

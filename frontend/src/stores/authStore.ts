@@ -46,22 +46,19 @@ export const useAuthStore = create<AuthState>()(
       initializeAuth: async () => {
         console.log('AuthStore: Initializing auth...');
         
-        const storedAccessToken = localStorage.getItem('accessToken');
-        const storedRefreshToken = localStorage.getItem('refreshToken');
+        // Get current state (already rehydrated from Zustand persist)
+        const state = get();
         
-        console.log('AuthStore: Stored tokens exist:', {
-          accessToken: !!storedAccessToken,
-          refreshToken: !!storedRefreshToken
+        console.log('AuthStore: Current state:', {
+          hasAccessToken: !!state.accessToken,
+          hasRefreshToken: !!state.refreshToken,
+          hasUser: !!state.user,
+          isAuthenticated: state.isAuthenticated
         });
         
-        if (storedAccessToken && storedRefreshToken) {
-          apiClient.setTokens(storedAccessToken, storedRefreshToken);
-          
-          set({
-            accessToken: storedAccessToken,
-            refreshToken: storedRefreshToken,
-            isHydrated: true,
-          });
+        if (state.accessToken && state.refreshToken) {
+          // Set tokens in apiClient so it can make authenticated requests
+          apiClient.setTokensOnly(state.accessToken, state.refreshToken);
           
           // Verify token validity with backend
           const isValid = await get().checkAuthStatus();
@@ -69,12 +66,14 @@ export const useAuthStore = create<AuthState>()(
           if (isValid) {
             console.log('AuthStore: Authentication validated');
             
+            set({ isHydrated: true });
+            
             // Setup automatic token refresh
             const setupTokenRefresh = () => {
-              const state = get();
-              if (state.isAuthenticated && state.refreshToken) {
+              const currentState = get();
+              if (currentState.isAuthenticated && currentState.refreshToken) {
                 setTimeout(async () => {
-                  const refreshed = await state.refreshAuth();
+                  const refreshed = await currentState.refreshAuth();
                   if (refreshed) {
                     setupTokenRefresh(); // Schedule next refresh
                   }
@@ -85,7 +84,7 @@ export const useAuthStore = create<AuthState>()(
             setupTokenRefresh();
           } else {
             console.log('AuthStore: Token validation failed, clearing auth');
-            get().logout();
+            await get().logout();
           }
         } else {
           console.log('AuthStore: No stored tokens, setting hydrated to true');
@@ -129,8 +128,10 @@ export const useAuthStore = create<AuthState>()(
           if (response.success && response.data) {
             const { accessToken: newAccessToken, refreshToken: newRefreshToken, user } = response.data as any;
             
-            apiClient.setTokens(newAccessToken, newRefreshToken || refreshToken);
+            // Set tokens in apiClient (without localStorage)
+            apiClient.setTokensOnly(newAccessToken, newRefreshToken || refreshToken);
             
+            // Update Zustand state (this will persist via Zustand middleware)
             set({
               accessToken: newAccessToken,
               refreshToken: newRefreshToken || refreshToken,
@@ -146,7 +147,7 @@ export const useAuthStore = create<AuthState>()(
           return false;
         } catch (error) {
           console.warn('AuthStore: Token refresh failed:', error);
-          get().logout();
+          await get().logout();
           return false;
         }
       },
@@ -167,14 +168,17 @@ export const useAuthStore = create<AuthState>()(
 
           const { user: userData, accessToken, refreshToken } = response.data as any;
 
-          apiClient.setTokens(accessToken, refreshToken);
+          // Set tokens in apiClient (without localStorage)
+          apiClient.setTokensOnly(accessToken, refreshToken);
 
+          // Update Zustand state (this will persist via Zustand middleware)
           set({
             user: { ...userData, status: 'active' as UserPresenceStatus },
             accessToken,
             refreshToken,
             isAuthenticated: true,
             isLoading: false,
+            isHydrated: true,
             lastTokenRefresh: Date.now(),
           });
         } catch (error: any) {
@@ -195,14 +199,17 @@ export const useAuthStore = create<AuthState>()(
 
           const { user: userData, accessToken, refreshToken } = response.data as any;
 
-          apiClient.setTokens(accessToken, refreshToken);
+          // Set tokens in apiClient (without localStorage)
+          apiClient.setTokensOnly(accessToken, refreshToken);
 
+          // Update Zustand state (this will persist via Zustand middleware)
           set({
             user: { ...userData, status: 'active' as UserPresenceStatus },
             accessToken,
             refreshToken,
             isAuthenticated: true,
             isLoading: false,
+            isHydrated: true,
             lastTokenRefresh: Date.now(),
           });
           
@@ -234,6 +241,10 @@ export const useAuthStore = create<AuthState>()(
           console.warn('AuthStore: Logout API call failed:', error);
         }
         
+        // Clear tokens from apiClient
+        apiClient.clearTokensOnly();
+        
+        // Update Zustand state (this will clear persist storage)
         set({
           user: null,
           accessToken: null,
@@ -251,6 +262,10 @@ export const useAuthStore = create<AuthState>()(
           console.warn('AuthStore: Logout all API call failed:', error);
         }
         
+        // Clear tokens from apiClient
+        apiClient.clearTokensOnly();
+        
+        // Update Zustand state (this will clear persist storage)
         set({
           user: null,
           accessToken: null,
@@ -272,7 +287,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setTokens: (accessToken: string, refreshToken: string) => {
-        apiClient.setTokens(accessToken, refreshToken);
+        // Set tokens in apiClient (without localStorage)
+        apiClient.setTokensOnly(accessToken, refreshToken);
+        
+        // Update Zustand state (this will persist via Zustand middleware)
         set({ 
           accessToken, 
           refreshToken, 

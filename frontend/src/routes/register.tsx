@@ -3,11 +3,13 @@ import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Github, Chrome } from 'lucid
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from '@tanstack/react-router';
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Toast from "../components/ui/Toast";
 import { apiClient } from "../services/api";
+import { useAuthStore } from "../stores/authStore";
 
 const registerSchema = z
   .object({
@@ -32,6 +34,15 @@ function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const navigate = useNavigate();
+  const { isAuthenticated, isHydrated } = useAuthStore();
+
+  // Auto-redirect to dashboard if already logged in
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      navigate({ to: '/dashboard' });
+    }
+  }, [isAuthenticated, isHydrated, navigate]);
 
   const {
     register,

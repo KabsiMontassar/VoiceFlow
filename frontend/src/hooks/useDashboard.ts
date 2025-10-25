@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useRoomStore } from "../stores/roomStore";
 import { useAuthStore } from "../stores/authStore";
 import { apiClient } from "../services/api";
@@ -6,6 +7,7 @@ import { apiClient } from "../services/api";
 export function useDashboard() {
   const { user, isAuthenticated, isHydrated } = useAuthStore();
   const { rooms, setRooms, addRoom } = useRoomStore();
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [roomName, setRoomName] = useState("");
@@ -17,9 +19,9 @@ export function useDashboard() {
   useEffect(() => {
     if (isHydrated && !isAuthenticated) {
       console.log('Dashboard: Redirecting to login - not authenticated');
-      window.location.href = "/login";
+      navigate({ to: '/login' });
     }
-  }, [isAuthenticated, isHydrated]);
+  }, [isAuthenticated, isHydrated, navigate]);
 
   // Fetch rooms on mount
   useEffect(() => {
@@ -90,7 +92,7 @@ export function useDashboard() {
   };
 
   const handleJoinRoom = (roomId: string) => {
-    window.location.href = `/room/${roomId}`;
+    navigate({ to: '/room/$roomId', params: { roomId } });
   };
 
   const handleJoinByCode = async (e: React.FormEvent) => {
