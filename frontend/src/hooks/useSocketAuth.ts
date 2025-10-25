@@ -44,7 +44,11 @@ export const useSocketAuth = () => {
 
     const handleAuthError = (error: any) => {
       console.error('[SocketAuth] Socket authentication error:', error);
-      logout();
+      // Don't logout immediately - let the auth store handle token refresh
+      // Only logout if it's a critical auth error
+      if (error?.message !== 'Connection rate limit exceeded') {
+        logout();
+      }
     };
 
     const handleSessionInvalidated = () => {
@@ -126,14 +130,19 @@ export const useSocketAuth = () => {
       
       connectionAttemptedRef.current = false;
     }
+    
+    // No cleanup function - we don't want to disconnect on re-renders
+  }, [isAuthenticated, isHydrated, accessToken, refreshToken, user]);
 
+  // Cleanup only on component unmount
+  useEffect(() => {
     return () => {
+      console.log('[SocketAuth] Hook unmounting, disconnecting socket...');
       if (socketClient.isConnected()) {
-        console.log('[SocketAuth] Component unmounting, disconnecting socket...');
         socketClient.disconnect();
       }
     };
-  }, [isAuthenticated, isHydrated, accessToken, refreshToken, user]);
+  }, []);
 
   return {
     isSocketConnected: socketClient.isConnected(),

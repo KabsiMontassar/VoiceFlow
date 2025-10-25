@@ -71,9 +71,14 @@ class ApiClient {
               return this.client(originalRequest);
             }
           } catch (refreshError) {
-            // Refresh failed, clear tokens and redirect to login
-            this.clearTokens();
-            window.location.href = '/login';
+            // Refresh failed, clear tokens and redirect to login ONCE
+            this.clearTokensOnly();
+            
+            // Check if we're already on login page to prevent loop
+            if (!window.location.pathname.includes('/login')) {
+              // Use replace to prevent back button issues
+              window.location.replace('/login');
+            }
             return Promise.reject(refreshError);
           }
         }
@@ -171,7 +176,7 @@ class ApiClient {
     } catch (error) {
       console.warn('Backend logout failed:', error);
     } finally {
-      this.clearTokens();
+      this.clearTokensOnly();
     }
     return { success: true };
   }
@@ -182,7 +187,7 @@ class ApiClient {
     } catch (error) {
       console.warn('Backend logout-all failed:', error);
     } finally {
-      this.clearTokens();
+      this.clearTokensOnly();
     }
     return { success: true };
   }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -8,10 +8,12 @@ import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import { apiClient } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import { useRoomStore } from '../stores/roomStore';
 import type { FunctionComponent } from '../common/types';
 
 const Dashboard = (): FunctionComponent => {
   const user = useAuthStore((state) => state.user);
+  const { rooms } = useRoomStore(); // Get rooms from global store
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
@@ -19,33 +21,6 @@ const Dashboard = (): FunctionComponent => {
   const [roomName, setRoomName] = useState('');
   const [roomDescription, setRoomDescription] = useState('');
   const [roomCode, setRoomCode] = useState('');
-
-  const { data: roomsData, isLoading: roomsLoading, error: roomsError } = useQuery({
-    queryKey: ['rooms'],
-    queryFn: async () => {
-      console.log('Fetching user rooms...');
-      try {
-        const response = await apiClient.listUserRooms();
-        console.log('Rooms API response:', response);
-        
-        if (!response.success) {
-          throw new Error(response.message || 'Failed to load rooms');
-        }
-        
-        // The backend returns { success: true, data: { rooms: [], total: 0 } }
-        const data = response.data as any;
-        console.log('Rooms data structure:', data);
-        console.log('Rooms array:', data.rooms);
-        
-        // Return the rooms array directly
-        return data.rooms || [];
-      } catch (error) {
-        console.error('Error fetching rooms:', error);
-        throw error;
-      }
-    },
-    retry: 1,
-  });
 
   // Create room mutation
   const createRoomMutation = useMutation({
@@ -93,11 +68,22 @@ const Dashboard = (): FunctionComponent => {
       const room = roomResponse.data as any;
       if (!room) throw new Error('Room not found');
       
-      // Then join the room
-      const joinResponse = await apiClient.joinRoom(room.id);
-      
-      if (!joinResponse.success) {
-        throw new Error(joinResponse.message || 'Failed to join room');
+      // Then try to join the room
+      try {
+        const joinResponse = await apiClient.joinRoom(room.id);
+        
+        if (!joinResponse.success) {
+          throw new Error(joinResponse.message || 'Failed to join room');
+        }
+      } catch (error: any) {
+        // Check if already in room
+        const errorCode = error?.response?.data?.error?.code;
+        if (errorCode === 'ALREADY_IN_ROOM') {
+          console.log('[Dashboard] Already in room:', room.id);
+          // Not an error - we're already a member
+        } else {
+          throw error;
+        }
       }
       
       return room;
@@ -133,11 +119,6 @@ const Dashboard = (): FunctionComponent => {
   const enterRoom = (roomId: string) => {
     navigate({ to: `/room/${roomId}` });
   };
-
-  // Debug logging
-  console.log('Dashboard render - roomsData:', roomsData);
-  console.log('Dashboard render - roomsLoading:', roomsLoading);
-  console.log('Dashboard render - roomsError:', roomsError);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -203,30 +184,9 @@ const Dashboard = (): FunctionComponent => {
         </div>
 
         {/* Rooms Grid */}
-        {roomsError && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-300 rounded text-red-700">
-            Error loading rooms: {(roomsError as any)?.message || 'Unknown error'}
-          </div>
-        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(() => {
-            console.log('Rooms display logic - roomsLoading:', roomsLoading);
-            console.log('Rooms display logic - roomsError:', roomsError);
-            console.log('Rooms display logic - roomsData:', roomsData);
-            console.log('Rooms display logic - roomsData type:', typeof roomsData);
-            console.log('Rooms display logic - Array.isArray(roomsData):', Array.isArray(roomsData));
-            console.log('Rooms display logic - roomsData?.length:', roomsData?.length);
-            return null;
-          })()}
-          {roomsLoading ? (
-            <Card className="col-span-full flex items-center justify-center h-40">
-              <div className="text-center">
-                <div className="animate-spin inline-block w-8 h-8 border-4 border-neutral-200 border-t-neutral-900 rounded-full" />
-                <p className="mt-4 text-neutral-600 font-mono">Loading rooms...</p>
-              </div>
-            </Card>
-          ) : roomsData?.length > 0 ? (
-            roomsData.map((room: any) => (
+          {rooms.length > 0 ? (
+            rooms.map((room: any) => (
               <Card key={room.id} variant="default" className="hover:shadow-lg transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">

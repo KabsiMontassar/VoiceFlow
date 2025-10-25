@@ -60,15 +60,9 @@ export function ChatInterface() {
       try {
         setIsLoadingMessages(true);
         
-        // First, ensure user is joined to the room
-        try {
-          await apiClient.joinRoom(roomId);
-        } catch (error: any) {
-          // Ignore "already in room" errors
-          if (!error.message?.includes('Already in this room')) {
-            console.warn('Failed to join room:', error);
-          }
-        }
+        // Skip API join - user is already a member if they can see this room in Dashboard
+        // Socket will handle the real-time room joining for presence/messages
+        console.log('[ChatInterface] Loading room data for:', roomId);
         
         // Load messages for this room
         const messagesResponse = await apiClient.getRoomMessages(roomId);
@@ -127,7 +121,8 @@ export function ChatInterface() {
   useEffect(() => {
     if (!roomId || !socketClient.isConnected()) return;
 
-    // Join room
+    // Join room via socket (this is separate from HTTP API join)
+    // Socket join is for real-time events, HTTP join is for room membership
     socketClient.joinRoom(roomId);
 
     // Helper to ensure MessageWithAuthor shape

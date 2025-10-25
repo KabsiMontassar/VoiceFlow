@@ -1,29 +1,32 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { useEffect } from "react";
 import type { FunctionComponent } from "./common/types";
 import type { TanstackRouter } from "./main";
-import { useAuthStore } from "./stores/authStore";
 import { useSocketAuth } from "./hooks/useSocketAuth";
+import { useRoomsSync } from "./hooks/useRoomsSync";
 
 const queryClient = new QueryClient();
 
 type AppProps = { router: TanstackRouter };
 
-const App = ({ router }: AppProps): FunctionComponent => {
-	const initializeAuth = useAuthStore((state) => state.initializeAuth);
-
+// Inner component that uses hooks requiring QueryClient
+const AppContent = ({ router }: AppProps): FunctionComponent => {
 	// Initialize socket authentication
 	useSocketAuth();
 
-	// Initialize auth on app startup
-	useEffect(() => {
-		initializeAuth();
-	}, [initializeAuth]);
+	// Initialize global rooms synchronization (requires QueryClient context)
+	useRoomsSync();
 
+	// Auth initialization is handled by Zustand's onRehydrateStorage callback
+	// No need to call it again here
+
+	return <RouterProvider router={router} />;
+};
+
+const App = ({ router }: AppProps): FunctionComponent => {
 	return (
 		<QueryClientProvider client={queryClient}>
-			<RouterProvider router={router} />
+			<AppContent router={router} />
 		</QueryClientProvider>
 	);
 };
