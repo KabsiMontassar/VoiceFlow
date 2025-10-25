@@ -34,11 +34,11 @@ const Avatar = ({
         <img
           src={src}
           alt={alt}
-          className={`${sizeClasses[size]} rounded-full object-cover border-2 border-primary-100`}
+          className={`${sizeClasses[size]} rounded-full object-cover border-2 border-neutral-100`}
         />
       ) : (
         <div
-          className={`${sizeClasses[size]} rounded-full bg-primary-900 text-white font-mono font-bold flex items-center justify-center border-2 border-primary-100`}
+          className={`${sizeClasses[size]} rounded-full bg-neutral-900 text-white font-mono font-bold flex items-center justify-center border-2 border-neutral-100`}
         >
           {initials}
         </div>

@@ -162,13 +162,13 @@ export function ChatInterface() {
 
   if (!room) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Hash className="w-8 h-8 text-slate-400" />
+          <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Hash className="w-8 h-8 text-neutral-400" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Room not found</h3>
-          <p className="text-slate-600">The room you're looking for doesn't exist.</p>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Room not found</h3>
+          <p className="text-neutral-600">The room you're looking for doesn't exist.</p>
         </div>
       </div>
     );
@@ -177,17 +177,17 @@ export function ChatInterface() {
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Chat Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+      <div className="bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-neutral-900 rounded-lg flex items-center justify-center">
             <Hash className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-slate-900">{room.name}</h1>
-            <div className="flex items-center space-x-4 text-sm text-slate-500">
+            <h1 className="text-lg font-semibold text-neutral-900">{room.name}</h1>
+            <div className="flex items-center space-x-4 text-sm text-neutral-500">
               <span>{members.length} members</span>
               {room.code && (
-                <span className="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-mono">
+                <span className="inline-flex items-center px-2 py-1 bg-neutral-100 text-neutral-700 rounded text-xs font-mono">
                   #{room.code}
                 </span>
               )}
@@ -197,35 +197,35 @@ export function ChatInterface() {
         
         <div className="flex items-center space-x-2">
           <button
-            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
             title="Voice Call"
           >
-            <Phone className="w-5 h-5 text-slate-600" />
+            <Phone className="w-5 h-5 text-neutral-600" />
           </button>
           <button
-            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
             title="Video Call"
           >
-            <Video className="w-5 h-5 text-slate-600" />
+            <Video className="w-5 h-5 text-neutral-600" />
           </button>
           <button
             onClick={() => setShowMembers(!showMembers)}
-            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
             title="Members"
           >
-            <Users className="w-5 h-5 text-slate-600" />
+            <Users className="w-5 h-5 text-neutral-600" />
           </button>
           <button
-            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
             title="Room Info"
           >
-            <Info className="w-5 h-5 text-slate-600" />
+            <Info className="w-5 h-5 text-neutral-600" />
           </button>
           <button
-            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
             title="More Options"
           >
-            <MoreVertical className="w-5 h-5 text-slate-600" />
+            <MoreVertical className="w-5 h-5 text-neutral-600" />
           </button>
         </div>
       </div>
@@ -238,11 +238,11 @@ export function ChatInterface() {
             {messages.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Hash className="w-8 h-8 text-slate-400" />
+                  <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Hash className="w-8 h-8 text-neutral-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Welcome to #{room.name}</h3>
-                  <p className="text-slate-600">This is the beginning of your conversation.</p>
+                  <h3 className="text-lg font-semibold text-neutral-900 mb-2">Welcome to #{room.name}</h3>
+                  <p className="text-neutral-600">This is the beginning of your conversation.</p>
                 </div>
               </div>
             ) : (
@@ -256,7 +256,7 @@ export function ChatInterface() {
                     {/* Date Divider */}
                     {showDate && (
                       <div className="flex items-center justify-center py-4">
-                        <div className="bg-slate-100 text-slate-600 text-xs px-3 py-1 rounded-full flex items-center space-x-1">
+                        <div className="bg-neutral-100 text-neutral-600 text-xs px-3 py-1 rounded-full flex items-center space-x-1">
                           <Clock className="w-3 h-3" />
                           <span>{formatDate(message.createdAt)}</span>
                         </div>
@@ -269,7 +269,7 @@ export function ChatInterface() {
                         {/* Avatar */}
                         {!isOwnMessage && (
                           <div className={`w-8 h-8 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
-                            <div className="w-8 h-8 bg-gradient-to-br from-slate-400 to-slate-600 rounded-full flex items-center justify-center">
+                            <div className="w-8 h-8 bg-neutral-600 rounded-full flex items-center justify-center">
                               <span className="text-xs font-medium text-white">
                                 {message.userId?.charAt(0).toUpperCase() || 'U'}
                               </span>
@@ -281,7 +281,7 @@ export function ChatInterface() {
                         <div className={`${isOwnMessage ? 'ml-2' : 'mr-2'}`}>
                           {/* Author name for other users */}
                           {!isOwnMessage && showAvatar && (
-                            <div className="text-xs text-slate-600 mb-1 px-3">
+                            <div className="text-xs text-neutral-600 mb-1 px-3">
                               User {message.userId.slice(0, 8)}
                             </div>
                           )}
@@ -289,12 +289,12 @@ export function ChatInterface() {
                           <div
                             className={`px-4 py-3 rounded-2xl ${
                               isOwnMessage
-                                ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
-                                : 'bg-white border border-slate-200 text-slate-900'
+                                ? 'bg-neutral-900 text-white'
+                                : 'bg-white border border-neutral-200 text-neutral-900'
                             } shadow-sm`}
                           >
                             <p className="text-sm leading-relaxed">{message.content}</p>
-                            <div className={`text-xs mt-1 ${isOwnMessage ? 'text-blue-100' : 'text-slate-500'}`}>
+                            <div className={`text-xs mt-1 ${isOwnMessage ? 'text-neutral-300' : 'text-neutral-500'}`}>
                               {formatTime(message.createdAt)}
                             </div>
                           </div>
@@ -310,12 +310,12 @@ export function ChatInterface() {
             {typingUsers.length > 0 && (
               <div className="flex justify-start mb-4">
                 <div className="flex items-center space-x-2 max-w-lg">
-                  <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></div>
+                  <div className="w-8 h-8 bg-neutral-100 rounded-full flex items-center justify-center">
+                    <div className="w-2 h-2 bg-neutral-400 rounded-full animate-pulse"></div>
                   </div>
-                  <div className="bg-white border border-slate-200 px-4 py-3 rounded-2xl shadow-sm">
+                  <div className="bg-white border border-neutral-200 px-4 py-3 rounded-2xl shadow-sm">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm text-slate-600">
+                      <span className="text-sm text-neutral-600">
                         {typingUsers.length === 1 
                           ? `${typingUsers[0].username} is typing`
                           : typingUsers.length === 2
@@ -324,9 +324,9 @@ export function ChatInterface() {
                         }
                       </span>
                       <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
                     </div>
                   </div>
@@ -338,14 +338,14 @@ export function ChatInterface() {
           </div>
 
           {/* Message Input */}
-          <div className="bg-white border-t border-slate-200 px-6 py-4">
+          <div className="bg-white border-t border-neutral-200 px-6 py-4">
             <form onSubmit={handleSendMessage} className="flex items-center space-x-3">
               <button
                 type="button"
-                className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
                 title="Attach File"
               >
-                <Paperclip className="w-5 h-5 text-slate-500" />
+                <Paperclip className="w-5 h-5 text-neutral-500" />
               </button>
               
               <div className="flex-1 relative">
@@ -355,22 +355,22 @@ export function ChatInterface() {
                   value={messageInput}
                   onChange={handleInputChange}
                   onBlur={handleInputBlur}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-transparent transition-all"
                 />
               </div>
               
               <button
                 type="button"
-                className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
                 title="Emoji"
               >
-                <Smile className="w-5 h-5 text-slate-500" />
+                <Smile className="w-5 h-5 text-neutral-500" />
               </button>
               
               <button
                 type="submit"
                 disabled={!messageInput.trim()}
-                className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="p-2 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 title="Send Message"
               >
                 <Send className="w-5 h-5" />
@@ -381,26 +381,26 @@ export function ChatInterface() {
 
         {/* Members Sidebar */}
         {showMembers && (
-          <div className="w-64 bg-white border-l border-slate-200 flex flex-col">
-            <div className="p-4 border-b border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900">Members</h3>
-              <p className="text-sm text-slate-500">{members.length} members</p>
+          <div className="w-64 bg-white border-l border-neutral-200 flex flex-col">
+            <div className="p-4 border-b border-neutral-200">
+              <h3 className="text-lg font-semibold text-neutral-900">Members</h3>
+              <p className="text-sm text-neutral-500">{members.length} members</p>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {members.map((member) => (
-                <div key={member.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-50">
-                  <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                <div key={member.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-neutral-50">
+                  <div className="w-8 h-8 bg-neutral-600 rounded-full flex items-center justify-center">
                     <span className="text-sm font-medium text-white">
                       {member.username?.charAt(0).toUpperCase() || 'U'}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-900 truncate">
+                    <div className="text-sm font-medium text-neutral-900 truncate">
                       {member.username}
                     </div>
                     <div className="flex items-center space-x-1">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-xs text-slate-500">Online</span>
+                      <span className="text-xs text-neutral-500">Online</span>
                     </div>
                   </div>
                 </div>

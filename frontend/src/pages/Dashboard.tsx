@@ -140,23 +140,23 @@ const Dashboard = (): FunctionComponent => {
   console.log('Dashboard render - roomsError:', roomsError);
 
   return (
-    <div className="min-h-screen bg-primary-50">
+    <div className="min-h-screen bg-neutral-50">
       {/* Header */}
-      <header className="bg-white border-b border-primary-100 sticky top-0 z-40">
+      <header className="bg-white border-b border-neutral-100 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-primary-950 font-serif">VoiceFlow</h1>
+              <h1 className="text-2xl font-bold text-neutral-950 font-serif">VoiceFlow</h1>
             </div>
 
             <nav className="hidden md:flex items-center gap-6">
-              <a href="#" className="text-primary-600 hover:text-primary-950 font-mono text-sm">
+              <a href="#" className="text-neutral-600 hover:text-neutral-950 font-mono text-sm">
                 Dashboard
               </a>
-              <a href="#" className="text-primary-600 hover:text-primary-950 font-mono text-sm">
+              <a href="#" className="text-neutral-600 hover:text-neutral-950 font-mono text-sm">
                 Rooms
               </a>
-              <a href="#" className="text-primary-600 hover:text-primary-950 font-mono text-sm">
+              <a href="#" className="text-neutral-600 hover:text-neutral-950 font-mono text-sm">
                 Settings
               </a>
             </nav>
@@ -164,8 +164,8 @@ const Dashboard = (): FunctionComponent => {
             <div className="flex items-center gap-4">
               <Avatar initials={user?.username?.substring(0, 2).toUpperCase() || 'U'} status="online" />
               <div className="hidden sm:block">
-                <p className="text-sm font-mono font-bold text-primary-950">{user?.username}</p>
-                <p className="text-xs font-mono text-primary-600">{user?.email}</p>
+                <p className="text-sm font-mono font-bold text-neutral-950">{user?.username}</p>
+                <p className="text-xs font-mono text-neutral-600">{user?.email}</p>
               </div>
             </div>
           </div>
@@ -176,10 +176,10 @@ const Dashboard = (): FunctionComponent => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-primary-950 font-serif mb-2">
+          <h2 className="text-3xl font-bold text-neutral-950 font-serif mb-2">
             Welcome back, {user?.username}!
           </h2>
-          <p className="text-primary-600 font-mono">
+          <p className="text-neutral-600 font-mono">
             Manage your rooms and connect with your team
           </p>
         </div>
@@ -221,8 +221,8 @@ const Dashboard = (): FunctionComponent => {
           {roomsLoading ? (
             <Card className="col-span-full flex items-center justify-center h-40">
               <div className="text-center">
-                <div className="animate-spin inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-900 rounded-full" />
-                <p className="mt-4 text-primary-600 font-mono">Loading rooms...</p>
+                <div className="animate-spin inline-block w-8 h-8 border-4 border-neutral-200 border-t-neutral-900 rounded-full" />
+                <p className="mt-4 text-neutral-600 font-mono">Loading rooms...</p>
               </div>
             </Card>
           ) : roomsData?.length > 0 ? (
@@ -230,18 +230,18 @@ const Dashboard = (): FunctionComponent => {
               <Card key={room.id} variant="default" className="hover:shadow-lg transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-primary-950 font-serif">{room.name}</h3>
-                    <p className="text-sm text-primary-600 font-mono mt-1">
+                    <h3 className="text-lg font-bold text-neutral-950 font-serif">{room.name}</h3>
+                    <p className="text-sm text-neutral-600 font-mono mt-1">
                       {room.description || 'No description'}
                     </p>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-primary-600 font-mono">Room Code:</span>
-                      <span className="inline-block px-2 py-1 bg-primary-100 text-primary-900 rounded text-xs font-mono font-bold">
+                      <span className="text-xs text-neutral-600 font-mono">Room Code:</span>
+                      <span className="inline-block px-2 py-1 bg-neutral-100 text-neutral-900 rounded text-xs font-mono font-bold">
                         {room.code}
                       </span>
                       <button
                         onClick={() => copyRoomCode(room.code)}
-                        className="text-primary-600 hover:text-primary-900 transition-colors"
+                        className="text-neutral-600 hover:text-neutral-900 transition-colors"
                         title="Copy room code"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,13 +250,13 @@ const Dashboard = (): FunctionComponent => {
                       </button>
                     </div>
                   </div>
-                  <span className="inline-block px-3 py-1 bg-primary-100 text-primary-900 rounded-full text-xs font-mono font-bold">
+                  <span className="inline-block px-3 py-1 bg-neutral-100 text-neutral-900 rounded-full text-xs font-mono font-bold">
                     {room.memberCount || 0} members
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-primary-100">
-                  <span className="text-xs text-primary-600 font-mono">
+                <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
+                  <span className="text-xs text-neutral-600 font-mono">
                     Created {new Date(room.createdAt).toLocaleDateString()}
                   </span>
                   <Button 
@@ -273,7 +273,7 @@ const Dashboard = (): FunctionComponent => {
             <Card className="col-span-full text-center py-12">
               <div className="text-center">
                 <svg
-                  className="w-16 h-16 mx-auto text-primary-200 mb-4"
+                  className="w-16 h-16 mx-auto text-neutral-200 mb-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -285,8 +285,8 @@ const Dashboard = (): FunctionComponent => {
                     d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4"
                   />
                 </svg>
-                <h3 className="text-lg font-bold text-primary-950 font-serif mb-2">No rooms yet</h3>
-                <p className="text-primary-600 font-mono mb-4">
+                <h3 className="text-lg font-bold text-neutral-950 font-serif mb-2">No rooms yet</h3>
+                <p className="text-neutral-600 font-mono mb-4">
                   Create your first room to start collaborating
                 </p>
                 <Button
@@ -355,7 +355,7 @@ const Dashboard = (): FunctionComponent => {
             maxLength={8}
           />
 
-          <p className="text-sm text-primary-600 font-mono">
+          <p className="text-sm text-neutral-600 font-mono">
             Ask the room creator for the room code to join
           </p>
 

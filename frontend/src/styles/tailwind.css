@@ -4,37 +4,42 @@
 
 @import "tailwindcss";
 
-/* Custom theme configuration */
+/* Professional Monochromatic Theme */
 @theme {
-  --color-primary-50: #f0f9ff;
-  --color-primary-100: #e0f2fe;
-  --color-primary-200: #bae6fd;
-  --color-primary-300: #7dd3fc;
-  --color-primary-400: #38bdf8;
-  --color-primary-500: #0ea5e9;
-  --color-primary-600: #0284c7;
-  --color-primary-700: #0369a1;
-  --color-primary-800: #075985;
-  --color-primary-900: #0c4a6e;
-  --color-primary-950: #082f49;
+  /* Primary greys for main interface elements */
+  --color-primary-50: #fafafa;
+  --color-primary-100: #f5f5f5;
+  --color-primary-200: #e5e5e5;
+  --color-primary-300: #d4d4d4;
+  --color-primary-400: #a3a3a3;
+  --color-primary-500: #737373;
+  --color-primary-600: #525252;
+  --color-primary-700: #404040;
+  --color-primary-800: #262626;
+  --color-primary-900: #171717;
+  --color-primary-950: #0a0a0a;
 
-  --color-neutral-50: #f8fafc;
-  --color-neutral-100: #f1f5f9;
-  --color-neutral-200: #e2e8f0;
-  --color-neutral-300: #cbd5e1;
-  --color-neutral-400: #94a3b8;
-  --color-neutral-500: #64748b;
-  --color-neutral-600: #475569;
-  --color-neutral-700: #334155;
-  --color-neutral-800: #1e293b;
-  --color-neutral-900: #0f172a;
-  --color-neutral-950: #020617;
+  /* Neutral greys for text and backgrounds */
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-300: #d4d4d4;
+  --color-neutral-400: #a3a3a3;
+  --color-neutral-500: #737373;
+  --color-neutral-600: #525252;
+  --color-neutral-700: #404040;
+  --color-neutral-800: #262626;
+  --color-neutral-900: #171717;
+  --color-neutral-950: #0a0a0a;
 
-  --color-foreground: #0f172a;
+  /* Professional colors */
+  --color-foreground: #0a0a0a;
   --color-background: #ffffff;
-  --color-muted: #f1f5f9;
-  --color-muted-foreground: #64748b;
-  --color-border: #e2e8f0;
+  --color-muted: #f5f5f5;
+  --color-muted-foreground: #737373;
+  --color-border: #e5e5e5;
+  --color-accent: #404040;
+  --color-surface: #fafafa;
 }
 
 /* Enable custom colors in utilities */
@@ -44,8 +49,6 @@
 .text-neutral-400 { color: var(--color-neutral-400); }
 .text-neutral-500 { color: var(--color-neutral-500); }
 .border-neutral-200 { border-color: var(--color-neutral-200); }
-.hover\\:bg-neutral-50:hover { background-color: var(--color-neutral-50); }
-.hover\\:text-neutral-600:hover { color: var(--color-neutral-600); }
 
 .bg-primary-50 { background-color: var(--color-primary-50); }
 .bg-primary-100 { background-color: var(--color-primary-100); }
@@ -96,7 +99,7 @@
   }
 
   pre {
-    @apply font-mono bg-slate-900 text-white p-4 rounded-lg overflow-x-auto;
+    @apply font-mono bg-neutral-900 text-white p-4 rounded-lg overflow-x-auto;
   }
 
   button {
@@ -117,11 +120,11 @@
   }
 
   .input-base {
-    @apply w-full px-4 py-2 rounded-lg border border-slate-200 text-slate-950 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200;
+    @apply w-full px-4 py-2 rounded-lg border border-neutral-200 text-neutral-950 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-400 transition-all duration-200;
   }
 
   .card-base {
-    @apply rounded-xl p-6 bg-white border border-slate-100 shadow-sm transition-all duration-200;
+    @apply rounded-xl p-6 bg-white border border-neutral-100 shadow-sm transition-all duration-200;
   }
 
   .glass-effect {
@@ -129,7 +132,7 @@
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-neutral-800 to-neutral-600;
   }
 
   .shadow-soft {
@@ -137,7 +140,7 @@
   }
 
   .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-400;
   }
 
   .fade-in {
@@ -193,13 +196,13 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-slate-50;
+  @apply bg-neutral-50;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full hover:bg-slate-400;
+  @apply bg-neutral-300 rounded-full hover:bg-neutral-400;
 }
 
 ::-webkit-scrollbar-corner {
-  @apply bg-slate-50;
+  @apply bg-neutral-50;
 }

@@ -14,16 +14,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ): FunctionComponent => {
     const baseClasses =
-      'inline-flex items-center justify-center font-medium font-mono transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed';
+      'inline-flex items-center justify-center font-medium font-mono transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variantClasses = {
       primary:
-        'bg-slate-900 text-white hover:bg-slate-800 active:bg-slate-950 shadow-md hover:shadow-lg',
+        'bg-neutral-900 text-white hover:bg-neutral-800 active:bg-neutral-950 shadow-md hover:shadow-lg',
       secondary:
-        'bg-slate-100 text-slate-950 hover:bg-slate-200 active:bg-slate-300 shadow-sm',
+        'bg-neutral-100 text-neutral-950 hover:bg-neutral-200 active:bg-neutral-300 shadow-sm',
       danger: 'bg-red-500 text-white hover:bg-red-600 active:bg-red-700 shadow-md hover:shadow-lg',
       ghost:
-        'bg-transparent text-slate-900 hover:bg-slate-50 active:bg-slate-100 border border-slate-200',
+        'bg-transparent text-neutral-900 hover:bg-neutral-50 active:bg-neutral-100 border border-neutral-200',
     };
 
     const sizeClasses = {
