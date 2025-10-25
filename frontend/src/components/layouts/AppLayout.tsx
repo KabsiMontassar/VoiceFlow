@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from '@tanstack/react-router';
 import { 
   Menu, 
@@ -15,15 +15,45 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useRoomStore } from '../../stores/roomStore';
+import { socketClient } from '../../services/socket';
 
 export function AppLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { user, logout } = useAuthStore();
+  const { user, logout, accessToken, isAuthenticated } = useAuthStore();
   const { rooms } = useRoomStore();
   const navigate = useNavigate();
 
+  // Initialize socket connection when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user && accessToken) {
+      const initializeSocket = async () => {
+        try {
+          if (!socketClient.isConnected()) {
+            console.log('Connecting to socket with token...');
+            await socketClient.connect({
+              url: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000',
+              token: accessToken
+            });
+            console.log('Socket connected successfully');
+          }
+        } catch (error) {
+          console.error('Failed to connect to socket:', error);
+        }
+      };
+
+      initializeSocket();
+    }
+
+    return () => {
+      if (!isAuthenticated) {
+        socketClient.disconnect();
+      }
+    };
+  }, [isAuthenticated, user, accessToken]);
+
   const handleLogout = () => {
+    socketClient.disconnect();
     logout();
     navigate({ to: '/login' });
   };

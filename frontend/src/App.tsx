@@ -22,12 +22,12 @@ const App = ({ router }: AppProps): FunctionComponent => {
 	return (
 		<QueryClientProvider client={queryClient}>
 			<RouterProvider router={router} />
-			<TanStackRouterDevelopmentTools
+			{/* <TanStackRouterDevelopmentTools
 				initialIsOpen={false}
 				position="bottom-left"
 				router={router}
 			/>
-			<ReactQueryDevtools initialIsOpen={false} position="bottom" />
+			<ReactQueryDevtools initialIsOpen={false} position="bottom" /> */}
 		</QueryClientProvider>
 	);
 };
