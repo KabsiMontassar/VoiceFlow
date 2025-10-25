@@ -41,9 +41,10 @@ export class OptimizedSocketHandlers {
   
   // Rate limiting configuration
   private readonly RATE_LIMITS = {
-    messages: { max: 30, window: 60000 }, // 30 messages per minute
-    typing: { max: 60, window: 60000 },   // 60 typing events per minute
-    join: { max: 10, window: 60000 }      // 10 room joins per minute
+    messages: { max: 30, window: 60000 },  // 30 messages per minute
+    typing: { max: 60, window: 60000 },    // 60 typing events per minute
+    join: { max: 20, window: 60000 },      // 20 room joins per minute (increased for page refreshes)
+    connect: { max: 5, window: 60000 }     // 5 socket connections per minute (for page refreshes)
   };
 
   // Debounce configuration
@@ -164,8 +165,8 @@ export class OptimizedSocketHandlers {
       // Check connection rate limiting
       const connectRateLimit = await redisService.checkRateLimit(
         `connect:${userId}`,
-        this.RATE_LIMITS.join.max,
-        this.RATE_LIMITS.join.window / 1000
+        this.RATE_LIMITS.connect.max,
+        this.RATE_LIMITS.connect.window / 1000
       );
 
       if (!connectRateLimit.allowed) {
@@ -242,10 +243,8 @@ export class OptimizedSocketHandlers {
     });
 
     // Presence management
-    socket.on('update_status', async (data) => {
-      await this.handleUpdateStatus(socket, data);
-    });
-
+    // Note: User status (active/inactive) is now managed by auth service
+    // Only room presence queries are handled here
     socket.on('get_room_presence', async (data) => {
       await this.handleGetRoomPresence(socket, data);
     });
@@ -579,27 +578,6 @@ export class OptimizedSocketHandlers {
 
     } catch (error) {
       logger.error('Typing stop error:', error);
-    }
-  }
-
-  /**
-   * Handle status updates
-   */
-  private async handleUpdateStatus(socket: RateLimitedSocket, data: any): Promise<void> {
-    const userId = socket.userId!;
-
-    try {
-      const { status } = data;
-      if (!['active', 'inactive', 'away'].includes(status)) {
-        socket.emit('error', { message: 'Invalid status' });
-        return;
-      }
-
-      await presenceService.setUserStatus(userId, status);
-      socket.emit('status_updated', { status, timestamp: new Date() });
-
-    } catch (error) {
-      logger.error('Update status error:', error);
     }
   }
 

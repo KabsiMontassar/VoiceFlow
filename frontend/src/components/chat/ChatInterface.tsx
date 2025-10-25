@@ -386,7 +386,7 @@ export function ChatInterface() {
     socketClient.on('user_joined_room', handleUserJoinedRoom);
     socketClient.on('user_left_room', handleUserLeftRoom);
     socketClient.on('presence_update', handlePresenceUpdate);
-    socketClient.on('user_status_changed', handlePresenceUpdate); // Also listen to direct status changes
+    // Note: user_status_changed removed - status is now managed by auth service
     socketClient.on('room_presence_update', handleRoomPresenceUpdate);
     socketClient.on('room_presence', handleRoomPresence); // Handle initial presence
 
@@ -398,7 +398,7 @@ export function ChatInterface() {
       socketClient.off('user_joined_room', handleUserJoinedRoom);
       socketClient.off('user_left_room', handleUserLeftRoom);
       socketClient.off('presence_update', handlePresenceUpdate);
-      socketClient.off('user_status_changed', handlePresenceUpdate); // Clean up status change handler
+      // Note: user_status_changed removed - status is now managed by auth service
       socketClient.off('room_presence_update', handleRoomPresenceUpdate);
       socketClient.off('room_presence', handleRoomPresence); // Clean up initial presence handler
 

@@ -179,9 +179,7 @@ export class SocketClient {
       console.debug('[Socket] Initial room presence:', data);
     });
 
-    this.socket.on('user_status_changed', (data) => {
-      console.debug('[Socket] User status changed:', data);
-    });
+    // Note: user_status_changed removed - status is now managed by auth service
 
     // Enhanced messaging events
     this.socket.on('new_message', (message) => {
@@ -425,19 +423,25 @@ export class SocketClient {
     });
   }
 
-  setUserStatus(status: UserPresenceStatus): void {
-    this.emit('update_status', {
-      status,
-      timestamp: Date.now(),
-    });
+  /**
+   * @deprecated User status is now managed by the auth service (login/logout).
+   * This method no longer affects global user status and should not be used.
+   */
+  setUserStatus(_status: UserPresenceStatus): void {
+    console.warn('[Socket] setUserStatus is deprecated. User status is managed by auth service.');
+    // No-op: Status is now managed by auth service in Redis
   }
 
   onPresenceUpdate(callback: (presence: UserPresence) => void): void {
     this.on(SOCKET_EVENTS.PRESENCE_UPDATE, callback);
   }
 
-  onUserStatusChanged(callback: (data: { userId: string; status: UserPresenceStatus }) => void): void {
-    this.on('user_status_changed', callback);
+  /**
+   * @deprecated User status changes are now managed by auth service, not socket events.
+   */
+  onUserStatusChanged(_callback: (data: { userId: string; status: UserPresenceStatus }) => void): void {
+    console.warn('[Socket] onUserStatusChanged is deprecated. User status is managed by auth service.');
+    // No-op: Status changes are managed by auth service
   }
 
   onRoomPresenceUpdate(callback: (data: { roomId: string; users: UserPresence[] }) => void): void {

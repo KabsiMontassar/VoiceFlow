@@ -9,6 +9,7 @@ import { AppError } from '../utils/responses';
 import { ERROR_CODES, User, AuthPayload, UserPresenceStatus } from '../../../shared/src';
 import { generateUUID } from '../../../shared/src/utils';
 import logger from '../utils/logger';
+import { redisService } from './redis.service';
 
 export interface LoginSessionInfo {
   deviceId?: string;
@@ -85,6 +86,9 @@ export class AuthService {
     await user.update({ status: UserPresenceStatus.ACTIVE });
     (userJson as any).status = UserPresenceStatus.ACTIVE;
 
+    // Set user as ACTIVE in Redis (global status based on authentication)
+    await redisService.setUserPresence(user.id, UserPresenceStatus.ACTIVE);
+
     logger.info(`User ${user.id} registered and marked as active`);
 
     return {
@@ -140,6 +144,9 @@ export class AuthService {
     delete (userJson as unknown as Record<string, unknown>).passwordHash;
     (userJson as any).status = 'active';
 
+    // Set user as ACTIVE in Redis (global status based on authentication)
+    await redisService.setUserPresence(user.id, UserPresenceStatus.ACTIVE);
+
     logger.info(`User ${user.id} logged in and marked as active`);
 
     return {
@@ -182,6 +189,10 @@ export class AuthService {
           { status: UserPresenceStatus.INACTIVE },
           { where: { id: userId } }
         );
+        
+        // Set user as INACTIVE in Redis (global status - logged out)
+        await redisService.setUserPresence(userId, UserPresenceStatus.INACTIVE);
+        
         logger.info(`User ${userId} logged out and marked as inactive`);
       } else {
         logger.info(`User ${userId} logged out from session ${sessionId} but still has active sessions`);
@@ -208,6 +219,9 @@ export class AuthService {
         { status: UserPresenceStatus.INACTIVE },
         { where: { id: userId } }
       );
+      
+      // Set user as INACTIVE in Redis (global status - logged out)
+      await redisService.setUserPresence(userId, UserPresenceStatus.INACTIVE);
       
       logger.info(`User ${userId} logged out from all sessions and marked as inactive`);
     } catch (error) {

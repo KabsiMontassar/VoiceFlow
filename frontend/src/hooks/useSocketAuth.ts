@@ -4,6 +4,10 @@ import { socketClient } from '../services/socket';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 
+// Global flag to track if socket has ever been initialized
+let socketInitialized = false;
+let currentAuthState = false;
+
 export const useSocketAuth = () => {
   const {
     isAuthenticated,
@@ -13,13 +17,17 @@ export const useSocketAuth = () => {
     user,
     refreshAuth,
     logout,
-    updateUserStatus,
   } = useAuthStore();
 
   const isConnectingRef = useRef(false);
-  const connectionAttemptedRef = useRef(false);
+  const eventHandlersRegisteredRef = useRef(false);
 
   useEffect(() => {
+    // Only register event handlers once globally
+    if (eventHandlersRegisteredRef.current) {
+      return;
+    }
+
     const handleTokenExpired = async () => {
       console.warn('[SocketAuth] Socket reported token expired');
       if (!refreshToken) {
@@ -35,10 +43,14 @@ export const useSocketAuth = () => {
         } else {
           console.warn('[SocketAuth] Token refresh failed, disconnecting socket');
           socketClient.disconnect();
+          socketInitialized = false;
+          currentAuthState = false;
         }
       } catch (error) {
         console.error('[SocketAuth] Token refresh failed:', error);
         socketClient.disconnect();
+        socketInitialized = false;
+        currentAuthState = false;
       }
     };
 
@@ -48,22 +60,20 @@ export const useSocketAuth = () => {
       // Only logout if it's a critical auth error
       if (error?.message !== 'Connection rate limit exceeded') {
         logout();
+        socketInitialized = false;
+        currentAuthState = false;
       }
     };
 
     const handleSessionInvalidated = () => {
       console.warn('[SocketAuth] Session invalidated by server');
       logout();
+      socketInitialized = false;
+      currentAuthState = false;
     };
 
     const handleConcurrentLogin = (data: any) => {
       console.warn('[SocketAuth] Concurrent login detected:', data);
-    };
-
-    const handleUserStatusChanged = (data: { userId: string; status: string }) => {
-      if (user && data.userId === user.id) {
-        updateUserStatus(data.status as any);
-      }
     };
 
     socketClient.on('token_expired', handleTokenExpired);
@@ -71,16 +81,12 @@ export const useSocketAuth = () => {
     socketClient.on('session_invalidated', handleSessionInvalidated);
     socketClient.on('concurrent_login', handleConcurrentLogin);
     socketClient.on('internal_token_expired', handleTokenExpired);
-    socketClient.on('user_status_changed', handleUserStatusChanged);
+    // Note: user_status_changed removed - status is now managed by auth service
 
-    return () => {
-      socketClient.off('token_expired', handleTokenExpired);
-      socketClient.off('auth_error', handleAuthError);
-      socketClient.off('session_invalidated', handleSessionInvalidated);
-      socketClient.off('concurrent_login', handleConcurrentLogin);
-      socketClient.off('internal_token_expired', handleTokenExpired);
-      socketClient.off('user_status_changed', handleUserStatusChanged);
-    };
+    eventHandlersRegisteredRef.current = true;
+
+    // Event handlers are registered globally and never cleaned up
+    // This prevents re-registration on component re-mounts
   }, []);
 
   useEffect(() => {
@@ -89,14 +95,24 @@ export const useSocketAuth = () => {
       return;
     }
 
+    // Only manage connection based on auth state changes, not component mounts
+    const authStateChanged = currentAuthState !== isAuthenticated;
+    
     if (isAuthenticated && accessToken) {
-      if (isConnectingRef.current || socketClient.isConnected()) {
-        console.log('[SocketAuth] Already connected or connecting, skipping...');
+      // Check if we need to connect (not already connected or connecting)
+      if (socketInitialized && socketClient.isConnected()) {
+        console.log('[SocketAuth] Socket already connected, skipping reconnection');
+        return;
+      }
+
+      if (isConnectingRef.current) {
+        console.log('[SocketAuth] Already connecting, skipping...');
         return;
       }
 
       isConnectingRef.current = true;
-      connectionAttemptedRef.current = true;
+      socketInitialized = true;
+      currentAuthState = true;
 
       console.log('[SocketAuth] Connecting socket with authentication...');
       
@@ -108,41 +124,34 @@ export const useSocketAuth = () => {
         })
         .then(() => {
           console.log('[SocketAuth] Socket connected successfully');
-          if (user) {
-            socketClient.setUserStatus('active' as any);
-          }
+          // Note: User status is now managed by auth service (login/logout), not socket events
         })
         .catch((error) => {
           console.error('[SocketAuth] Failed to connect socket:', error);
+          socketInitialized = false;
+          currentAuthState = false;
         })
         .finally(() => {
           isConnectingRef.current = false;
         });
-    } else if (!isAuthenticated && connectionAttemptedRef.current) {
-      console.log('[SocketAuth] Not authenticated, disconnecting socket...');
+    } else if (!isAuthenticated && authStateChanged) {
+      // Only disconnect if auth state actually changed from authenticated to not authenticated
+      console.log('[SocketAuth] Authentication lost, disconnecting socket...');
       
       if (socketClient.isConnected()) {
-        if (user) {
-          socketClient.setUserStatus('inactive' as any);
-        }
+        // Note: User status is now managed by auth service (login/logout), not socket events
         socketClient.disconnect();
       }
       
-      connectionAttemptedRef.current = false;
+      socketInitialized = false;
+      currentAuthState = false;
     }
     
-    // No cleanup function - we don't want to disconnect on re-renders
+    // No cleanup - socket persists across component re-mounts
   }, [isAuthenticated, isHydrated, accessToken, refreshToken, user]);
 
-  // Cleanup only on component unmount
-  useEffect(() => {
-    return () => {
-      console.log('[SocketAuth] Hook unmounting, disconnecting socket...');
-      if (socketClient.isConnected()) {
-        socketClient.disconnect();
-      }
-    };
-  }, []);
+  // NO unmount cleanup - socket should persist across navigation
+  // Only disconnect when user actually logs out (handled above)
 
   return {
     isSocketConnected: socketClient.isConnected(),

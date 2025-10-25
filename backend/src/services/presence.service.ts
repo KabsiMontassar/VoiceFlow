@@ -46,16 +46,10 @@ export class PresenceService {
   private presenceCache = new Map<string, UserPresence>();
   
   // Cleanup intervals
-  private presenceCleanupInterval: NodeJS.Timeout | null = null;
   private typingCleanupInterval: NodeJS.Timeout | null = null;
-  private heartbeatInterval: NodeJS.Timeout | null = null;
 
   // Configuration
   private readonly TYPING_TIMEOUT = 3000; // 3 seconds
-  private readonly PRESENCE_CLEANUP_INTERVAL = 30000; // 30 seconds
-  private readonly HEARTBEAT_INTERVAL = 60000; // 1 minute
-  private readonly AWAY_TIMEOUT = 300000; // 5 minutes
-  private readonly INACTIVE_TIMEOUT = 600000; // 10 minutes
 
   constructor() {
     this.startCleanupIntervals();
@@ -83,10 +77,10 @@ export class PresenceService {
       this.userSockets.get(userId)!.add(socketId);
       this.socketUsers.set(socketId, userId);
 
-      // Create or update presence - user is active when connected with valid auth
+      // Create or update presence cache (for room tracking, not global status)
       const presence: UserPresence = {
         userId,
-        status: UserPresenceStatus.ACTIVE,
+        status: UserPresenceStatus.ACTIVE, // This is just cache, real status is in Redis
         lastSeen: new Date(),
         socketId,
         sessionId,
@@ -96,7 +90,8 @@ export class PresenceService {
 
       this.presenceCache.set(userId, presence);
       
-      // Store in Redis for persistence across instances
+      // Global user status is managed by auth service in Redis
+      // We just ensure user is marked as ACTIVE when they connect with valid auth
       await redisService.setUserPresence(userId, UserPresenceStatus.ACTIVE);
 
       // Check if user has valid authentication
@@ -138,14 +133,10 @@ export class PresenceService {
         if (userSocketSet.size === 0) {
           this.userSockets.delete(userId);
           
-          // Check if user still has valid authentication
-          const { jwtService } = await import('../utils/jwt');
-          const isAuthenticated = await jwtService.isUserActive(userId);
-          
-          if (!isAuthenticated) {
-            // User is completely inactive
-            await this.setUserStatus(userId, UserPresenceStatus.INACTIVE);
-          }
+          // NOTE: We do NOT change global status on socket disconnect
+          // Global status (ACTIVE/INACTIVE) is based on authentication, not socket connection
+          // User remains ACTIVE until they explicitly logout (handled by auth service)
+          logger.debug(`User ${userId} has no more sockets but remains authenticated`);
         }
       }
 
@@ -182,36 +173,36 @@ export class PresenceService {
       }
       this.userRooms.get(userId)!.add(roomId);
 
-      // Update or create presence with current room
+      // Get global status from Redis (authentication-based)
+      const redisPresence = await redisService.getUserPresence(userId);
+      const globalStatus = redisPresence?.status || UserPresenceStatus.INACTIVE;
+      
+      // Update or create presence cache with current room
       let presence = this.presenceCache.get(userId);
-      const { jwtService } = await import('../utils/jwt');
-      const isAuthenticated = await jwtService.isUserActive(userId);
       
       if (presence) {
         presence.currentRoom = roomId;
         presence.lastSeen = new Date();
-        // User is joining a room, ensure they are marked as active if authenticated
-        if (isAuthenticated) {
-          presence.status = UserPresenceStatus.ACTIVE;
-        }
+        presence.status = globalStatus as UserPresenceStatus; // Use global status from Redis
         this.presenceCache.set(userId, presence);
-        await redisService.setUserPresence(userId, presence.status, roomId);
       } else {
         // Create new presence if it doesn't exist
         const newPresence: UserPresence = {
           userId,
-          status: isAuthenticated ? UserPresenceStatus.ACTIVE : UserPresenceStatus.INACTIVE,
+          status: globalStatus as UserPresenceStatus,
           lastSeen: new Date(),
           currentRoom: roomId
         };
         this.presenceCache.set(userId, newPresence);
-        await redisService.setUserPresence(userId, newPresence.status, roomId);
       }
+      
+      // Update current room in Redis (but don't change global status)
+      await redisService.setUserPresence(userId, globalStatus, roomId);
 
       // Broadcast presence update to the room
-      this.broadcastPresenceUpdate(userId, isAuthenticated ? UserPresenceStatus.ACTIVE : UserPresenceStatus.INACTIVE);
+      this.broadcastPresenceUpdate(userId, globalStatus);
 
-      logger.debug(`User ${userId} joined room ${roomId}, status: ${isAuthenticated ? 'ACTIVE' : 'INACTIVE'}`);
+      logger.debug(`User ${userId} joined room ${roomId}, global status: ${globalStatus}`);
     } catch (error) {
       logger.error('Handle user join room error:', error);
     }
@@ -263,26 +254,25 @@ export class PresenceService {
 
   /**
    * Set user status (active, inactive, away)
+   * NOTE: This is now ONLY used for socket-based presence updates
+   * Global status is managed by auth service in Redis
+   * @deprecated Use auth service for global status changes
    */
   public async setUserStatus(userId: string, status: UserPresenceStatus): Promise<void> {
     try {
-      const presence = this.presenceCache.get(userId) || {
-        userId,
-        status: UserPresenceStatus.INACTIVE,
-        lastSeen: new Date()
-      };
+      // Only update local cache, not Redis (Redis is managed by auth service)
+      const presence = this.presenceCache.get(userId);
+      
+      if (presence) {
+        presence.status = status;
+        presence.lastSeen = new Date();
+        this.presenceCache.set(userId, presence);
+      }
 
-      presence.status = status;
-      presence.lastSeen = new Date();
-      this.presenceCache.set(userId, presence);
-
-      // Update Redis
-      await redisService.setUserPresence(userId, status, presence.currentRoom);
-
-      // Broadcast status change
+      // Broadcast status change to rooms (local event only)
       this.broadcastPresenceUpdate(userId, status);
 
-      logger.debug(`User ${userId} status changed to ${status}`);
+      logger.debug(`User ${userId} local presence status changed to ${status}`);
     } catch (error) {
       logger.error('Set user status error:', error);
     }
@@ -397,39 +387,31 @@ export class PresenceService {
       let activeUsers = 0;
 
       for (const userId of userIds) {
+        // Always get global status from Redis (authentication-based)
+        const redisPresence = await redisService.getUserPresence(userId);
+        const globalStatus = redisPresence?.status || UserPresenceStatus.INACTIVE;
+        
+        // Get room presence from cache (for room tracking)
         let presence = this.presenceCache.get(userId);
         
-        // If no presence in cache, check if user has active sockets
         if (!presence) {
           const userSockets = this.userSockets.get(userId);
-          if (userSockets && userSockets.size > 0) {
-            // User is connected, create presence
-            const { jwtService } = await import('../utils/jwt');
-            const isAuthenticated = await jwtService.isUserActive(userId);
-            
-            presence = {
-              userId,
-              status: isAuthenticated ? UserPresenceStatus.ACTIVE : UserPresenceStatus.INACTIVE,
-              lastSeen: new Date(),
-              currentRoom: roomId
-            };
-            this.presenceCache.set(userId, presence);
-          } else {
-            // User is not connected, mark as inactive
-            presence = {
-              userId,
-              status: UserPresenceStatus.INACTIVE,
-              lastSeen: new Date(),
-              currentRoom: roomId
-            };
-          }
+          presence = {
+            userId,
+            status: globalStatus as UserPresenceStatus, // Use global status from Redis
+            lastSeen: redisPresence?.lastSeen ? new Date(redisPresence.lastSeen) : new Date(),
+            currentRoom: roomId
+          };
+          this.presenceCache.set(userId, presence);
+        } else {
+          // Update cached presence with global status from Redis
+          presence.status = globalStatus as UserPresenceStatus;
+          presence.lastSeen = redisPresence?.lastSeen ? new Date(redisPresence.lastSeen) : presence.lastSeen;
         }
         
-        if (presence) {
-          users.push(presence);
-          if (presence.status === UserPresenceStatus.ACTIVE) {
-            activeUsers++;
-          }
+        users.push(presence);
+        if (presence.status === UserPresenceStatus.ACTIVE) {
+          activeUsers++;
         }
       }
 
@@ -455,26 +437,28 @@ export class PresenceService {
    */
   public async getUserPresence(userId: string): Promise<UserPresence | null> {
     try {
-      // Try cache first
-      let presence = this.presenceCache.get(userId);
+      // Always get global status from Redis (authentication-based)
+      const redisPresence = await redisService.getUserPresence(userId);
       
-      if (!presence) {
-        // Try Redis
-        const redisPresence = await redisService.getUserPresence(userId);
-        if (redisPresence) {
-          presence = {
-            userId,
-            status: redisPresence.status as UserPresenceStatus,
-            lastSeen: new Date(redisPresence.lastSeen),
-            currentRoom: redisPresence.roomId
-          };
-          if (presence) {
-            this.presenceCache.set(userId, presence);
-          }
-        }
+      if (redisPresence) {
+        // Return presence with global status from Redis
+        const presence: UserPresence = {
+          userId,
+          status: redisPresence.status as UserPresenceStatus,
+          lastSeen: new Date(redisPresence.lastSeen),
+          currentRoom: redisPresence.roomId
+        };
+        
+        // Update cache for performance
+        this.presenceCache.set(userId, presence);
+        
+        return presence;
       }
-
-      return presence || null;
+      
+      // Fallback to cache if Redis fails
+      const cachedPresence = this.presenceCache.get(userId);
+      return cachedPresence || null;
+      
     } catch (error) {
       logger.error('Get user presence error:', error);
       return null;
@@ -507,6 +491,7 @@ export class PresenceService {
 
   /**
    * Broadcast presence update to relevant users
+   * Note: This is now only called for room presence changes, not global status
    */
   private broadcastPresenceUpdate(userId: string, status: string): void {
     if (!this.io) return;
@@ -514,27 +499,9 @@ export class PresenceService {
     const userRoomSet = this.userRooms.get(userId);
     if (userRoomSet) {
       for (const roomId of userRoomSet) {
-        // Broadcast individual presence update
+        // Broadcast presence update (room-level presence only)
         this.io.to(roomId).emit('presence_update', {
           userId,
-          status,
-          timestamp: new Date()
-        });
-        
-        // Also emit user_status_changed for more specific handling
-        this.io.to(roomId).emit('user_status_changed', {
-          userId,
-          status,
-          timestamp: new Date()
-        });
-      }
-    }
-
-    // Also broadcast to all user's sockets
-    const userSockets = this.userSockets.get(userId);
-    if (userSockets) {
-      for (const socketId of userSockets) {
-        this.io.to(socketId).emit('status_updated', {
           status,
           timestamp: new Date()
         });
@@ -617,40 +584,12 @@ export class PresenceService {
    * Start cleanup intervals
    */
   private startCleanupIntervals(): void {
-    // Cleanup stale presence data
-    this.presenceCleanupInterval = setInterval(() => {
-      this.cleanupStalePresence();
-    }, this.PRESENCE_CLEANUP_INTERVAL);
-
-    // Cleanup typing timeouts
+    // Cleanup typing timeouts only (presence cleanup removed - now handled by Redis TTL)
     this.typingCleanupInterval = setInterval(() => {
       this.cleanupTypingTimeouts();
     }, this.TYPING_TIMEOUT);
 
-    // Heartbeat for away/offline detection
-    this.heartbeatInterval = setInterval(() => {
-      this.updateUserActivity();
-    }, this.HEARTBEAT_INTERVAL);
-
-    logger.info('Presence cleanup intervals started');
-  }
-
-  /**
-   * Cleanup stale presence data
-   */
-  private cleanupStalePresence(): void {
-    const now = new Date();
-    
-    for (const [userId, presence] of this.presenceCache.entries()) {
-      const timeDiff = now.getTime() - presence.lastSeen.getTime();
-      
-      // Check if user should be marked as away or inactive
-      if (presence.status === UserPresenceStatus.ACTIVE && timeDiff > this.AWAY_TIMEOUT) {
-        this.setUserStatus(userId, UserPresenceStatus.AWAY);
-      } else if (presence.status !== UserPresenceStatus.INACTIVE && timeDiff > this.INACTIVE_TIMEOUT) {
-        this.setUserStatus(userId, UserPresenceStatus.INACTIVE);
-      }
-    }
+    logger.info('Typing cleanup interval started');
   }
 
   /**
@@ -671,21 +610,6 @@ export class PresenceService {
       // Remove expired typing users
       for (const userId of expiredUsers) {
         this.handleTypingStop(userId, roomId);
-      }
-    }
-  }
-
-  /**
-   * Update user activity for heartbeat
-   */
-  private updateUserActivity(): void {
-    for (const [userId, socketSet] of this.userSockets.entries()) {
-      if (socketSet.size > 0) {
-        const presence = this.presenceCache.get(userId);
-        if (presence && presence.status === UserPresenceStatus.ACTIVE) {
-          presence.lastSeen = new Date();
-          this.presenceCache.set(userId, presence);
-        }
       }
     }
   }
@@ -736,14 +660,8 @@ export class PresenceService {
    * Cleanup resources
    */
   public cleanup(): void {
-    if (this.presenceCleanupInterval) {
-      clearInterval(this.presenceCleanupInterval);
-    }
     if (this.typingCleanupInterval) {
       clearInterval(this.typingCleanupInterval);
-    }
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
     }
 
     this.userSockets.clear();
