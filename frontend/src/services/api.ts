@@ -22,6 +22,8 @@ class ApiClient {
   private client: AxiosInstance;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  private isRefreshing: boolean = false;
+  private isRedirecting: boolean = false;
 
   constructor(config: ApiRequestConfig = {}) {
     this.loadTokens();
@@ -53,8 +55,9 @@ class ApiClient {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         // If 401 and not already retrying, try to refresh token
-        if (error.response?.status === 401 && !originalRequest?._retry && this.refreshToken) {
+        if (error.response?.status === 401 && !originalRequest?._retry && this.refreshToken && !this.isRefreshing) {
           originalRequest._retry = true;
+          this.isRefreshing = true;
 
           try {
             const response = await axios.post(
@@ -68,16 +71,24 @@ class ApiClient {
               if (originalRequest.headers) {
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
               }
+              this.isRefreshing = false;
               return this.client(originalRequest);
             }
           } catch (refreshError) {
+            this.isRefreshing = false;
+            
             // Refresh failed, clear tokens and redirect to login ONCE
             this.clearTokensOnly();
             
-            // Check if we're already on login page to prevent loop
-            if (!window.location.pathname.includes('/login')) {
+            // Prevent multiple redirects
+            if (!this.isRedirecting && !window.location.pathname.includes('/login')) {
+              this.isRedirecting = true;
+              console.log('ApiClient: Token refresh failed, redirecting to login...');
+              
               // Use replace to prevent back button issues
-              window.location.replace('/login');
+              setTimeout(() => {
+                window.location.replace('/login');
+              }, 100);
             }
             return Promise.reject(refreshError);
           }
@@ -120,6 +131,8 @@ class ApiClient {
   clearTokensOnly(): void {
     this.accessToken = null;
     this.refreshToken = null;
+    this.isRefreshing = false;
+    this.isRedirecting = false;
     // Don't clear localStorage - Zustand persist handles it
   }
 

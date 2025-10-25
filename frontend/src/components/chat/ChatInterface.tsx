@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { 
-  Send, 
-  Smile, 
+import {
+  Send,
+  Smile,
   Users,
   Phone,
   Video,
   Hash,
-  Clock
+  Clock,
+  Mic,
+  MicOff,
+  PhoneOff
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useRoomStore } from '../../stores/roomStore';
@@ -28,7 +31,7 @@ export function ChatInterface() {
   const { user } = useAuthStore();
   const { rooms, removeRoom } = useRoomStore();
   const { currentRoomMessages, addMessage, setRoomMessages } = useMessageStore();
-  
+
   const [messageInput, setMessageInput] = useState('');
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -36,10 +39,18 @@ export function ChatInterface() {
   const [activeUsers, setActiveUsers] = useState<Set<string>>(new Set());
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  
+  const [showMentionsList, setShowMentionsList] = useState(false);
+  const [mentionSearchQuery, setMentionSearchQuery] = useState('');
+  const [mentionStartPos, setMentionStartPos] = useState<number | null>(null);
+
+  // Voice chat state (UI only for now)
+  const [isInVoiceCall, setIsInVoiceCall] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [voiceParticipants, setVoiceParticipants] = useState<string[]>([]); // Member IDs in voice call
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   const room = rooms.find(r => r.id === roomId);
   const messages = Array.isArray(currentRoomMessages[roomId]) ? currentRoomMessages[roomId] : [];
 
@@ -59,14 +70,14 @@ export function ChatInterface() {
     const loadRoomData = async () => {
       try {
         setIsLoadingMessages(true);
-        
+
         // Skip API join - user is already a member if they can see this room in Dashboard
         // Socket will handle the real-time room joining for presence/messages
         console.log('[ChatInterface] Loading room data for:', roomId);
-        
+
         // Load messages for this room
         const messagesResponse = await apiClient.getRoomMessages(roomId);
-        
+
         if (messagesResponse.success && messagesResponse.data) {
           // Extract the messages array from the response data
           const responseData = messagesResponse.data as any;
@@ -79,7 +90,7 @@ export function ChatInterface() {
           const membersResponse = await apiClient.getRoomMembers(roomId);
           if (membersResponse.success && membersResponse.data) {
             const membersData = membersResponse.data as any[];
-            
+
             // Extract user data from the RoomUser structure
             const membersList = membersData.map(memberData => {
               // Handle different possible structures
@@ -96,9 +107,9 @@ export function ChatInterface() {
                 return memberData;
               }
             });
-            
+
             setMembers(membersList);
-            
+
             // Initialize active users with ONLY the current user
             // Other users' active status will be determined by the room_presence event from server
             setActiveUsers(new Set([user.id]));
@@ -106,7 +117,7 @@ export function ChatInterface() {
         } catch (error) {
           console.warn('Failed to load room members:', error);
         }
-        
+
       } catch (error) {
         console.error('Failed to load room data:', error);
       } finally {
@@ -158,23 +169,23 @@ export function ChatInterface() {
       const findMember = members.find((m: any) => m.id === message.userId);
       const author = findMember
         ? {
-            id: findMember.id,
-            username: findMember.username,
-            email: findMember.email,
-            avatarUrl: findMember.avatarUrl || null,
-            status: findMember.status || 'inactive',
-            createdAt: findMember.createdAt ? new Date(findMember.createdAt) : new Date(),
-            updatedAt: findMember.updatedAt ? new Date(findMember.updatedAt) : new Date(),
-          }
+          id: findMember.id,
+          username: findMember.username,
+          email: findMember.email,
+          avatarUrl: findMember.avatarUrl || null,
+          status: findMember.status || 'inactive',
+          createdAt: findMember.createdAt ? new Date(findMember.createdAt) : new Date(),
+          updatedAt: findMember.updatedAt ? new Date(findMember.updatedAt) : new Date(),
+        }
         : {
-            id: message.userId,
-            username: message.userId, // Use userId as fallback instead of 'User'
-            email: '',
-            avatarUrl: null,
-            status: 'inactive',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
+          id: message.userId,
+          username: message.userId, // Use userId as fallback instead of 'User'
+          email: '',
+          avatarUrl: null,
+          status: 'inactive',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
 
       return {
         ...message,
@@ -200,7 +211,7 @@ export function ChatInterface() {
 
     const handleTyping = (data: any) => {
       if (user && data.userId === user.id) return;
-      
+
       if (data.isTyping) {
         setTypingUsers(prev => {
           const existing = prev.find(u => u.userId === data.userId);
@@ -265,12 +276,12 @@ export function ChatInterface() {
       if (data.users && Array.isArray(data.users)) {
         // Update active users based on room presence data
         const activeUserIds = data.users
-          .filter((userPresence: any) => 
-            userPresence.status === 'active' || 
+          .filter((userPresence: any) =>
+            userPresence.status === 'active' ||
             userPresence.status === 'away'
           )
           .map((userPresence: any) => userPresence.userId as string);
-        
+
         // Update active users set efficiently
         setActiveUsers(prev => {
           const newSet = new Set<string>(activeUserIds);
@@ -280,7 +291,7 @@ export function ChatInterface() {
           }
           return prev;
         });
-        
+
         // Also merge any new users into the members list
         const usersWithInfo = data.users.map((userPresence: any) => ({
           id: userPresence.userId,
@@ -288,19 +299,19 @@ export function ChatInterface() {
           email: userPresence.email || '',
           status: userPresence.status
         }));
-        
+
         // Merge with existing members, prioritizing existing data
         setMembers(prev => {
           const existingMap = new Map(prev.map(m => [m.id, m]));
           let hasChanges = false;
-          
+
           usersWithInfo.forEach((u: any) => {
             if (!existingMap.has(u.id)) {
               existingMap.set(u.id, u);
               hasChanges = true;
             }
           });
-          
+
           // Only update if there are actual changes
           return hasChanges ? Array.from(existingMap.values()) : prev;
         });
@@ -312,14 +323,14 @@ export function ChatInterface() {
       if (data.users && Array.isArray(data.users)) {
         // Set active users based on initial room presence data
         const activeUserIds = data.users
-          .filter((userPresence: any) => 
-            userPresence.status === 'active' || 
+          .filter((userPresence: any) =>
+            userPresence.status === 'active' ||
             userPresence.status === 'away'
           )
           .map((userPresence: any) => userPresence.userId);
-        
+
         setActiveUsers(new Set(activeUserIds));
-        
+
         // Update members list with presence information
         const usersWithInfo = data.users.map((userPresence: any) => ({
           id: userPresence.userId,
@@ -327,7 +338,7 @@ export function ChatInterface() {
           email: userPresence.email || '',
           status: userPresence.status
         }));
-          
+
         // Merge with existing members, prioritizing existing data
         setMembers(prev => {
           const existingMap = new Map(prev.map(m => [m.id, m]));
@@ -361,7 +372,7 @@ export function ChatInterface() {
       socketClient.off('presence_update', handlePresenceUpdate);
       socketClient.off('room_presence_update', handleRoomPresenceUpdate);
       socketClient.off('room_presence', handleRoomPresence); // Clean up initial presence handler
-      
+
       // Leave room and stop typing
       socketClient.typingStop(roomId);
       socketClient.leaveRoom(roomId);
@@ -370,7 +381,7 @@ export function ChatInterface() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!messageInput.trim() || !user || !roomId) return;
 
     const tempId = Date.now().toString();
@@ -388,30 +399,80 @@ export function ChatInterface() {
 
     // Add optimistic message immediately
     addMessage(roomId, tempMessage);
-    
+
     // Send via socket
     socketClient.sendMessage(roomId, messageInput.trim(), MessageType.TEXT, tempId);
-    
+
     // Clear input and stop typing
     setMessageInput('');
     socketClient.typingStop(roomId);
-    
+
     // Close emoji picker when sending message
     setShowEmojiPicker(false);
-    
+
     // Focus input for better UX
     inputRef.current?.focus();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessageInput(e.target.value);
-    
-    if (e.target.value.trim()) {
+    const value = e.target.value;
+    setMessageInput(value);
+
+    // Check for @ mention
+    const cursorPos = e.target.selectionStart || 0;
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+
+    if (lastAtSymbol !== -1 && lastAtSymbol === cursorPos - 1) {
+      // Just typed @
+      setShowMentionsList(true);
+      setMentionStartPos(lastAtSymbol);
+      setMentionSearchQuery('');
+    } else if (lastAtSymbol !== -1 && mentionStartPos !== null) {
+      // Typing after @
+      const query = textBeforeCursor.substring(lastAtSymbol + 1);
+      if (query.includes(' ')) {
+        // Space typed - close mentions
+        setShowMentionsList(false);
+        setMentionStartPos(null);
+      } else {
+        setMentionSearchQuery(query);
+      }
+    } else {
+      setShowMentionsList(false);
+      setMentionStartPos(null);
+    }
+
+    if (value.trim()) {
       socketClient.typingStart(roomId);
     } else {
       socketClient.typingStop(roomId);
     }
   };
+
+  const handleMentionSelect = (username: string) => {
+    if (mentionStartPos === null) return;
+
+    const beforeMention = messageInput.substring(0, mentionStartPos);
+    const afterMention = messageInput.substring(mentionStartPos + mentionSearchQuery.length + 1);
+    const newValue = `${beforeMention}@${username} ${afterMention}`;
+
+    setMessageInput(newValue);
+    setShowMentionsList(false);
+    setMentionStartPos(null);
+    setMentionSearchQuery('');
+
+    // Focus input
+    inputRef.current?.focus();
+  };
+
+  // Filter members for mentions (exclude current user)
+  const mentionableMembers = members.filter(m => m.id !== user?.id);
+  const filteredMentions = mentionSearchQuery
+    ? mentionableMembers.filter(m =>
+      m.username?.toLowerCase().includes(mentionSearchQuery.toLowerCase())
+    )
+    : mentionableMembers;
 
   const handleInputBlur = () => {
     // Small delay to allow form submission to complete
@@ -424,7 +485,7 @@ export function ChatInterface() {
     const newValue = messageInput + emoji;
     setMessageInput(newValue);
     // Don't close picker - user can select multiple emojis
-    
+
     // Focus input and trigger typing
     inputRef.current?.focus();
     if (newValue.trim()) {
@@ -443,18 +504,18 @@ export function ChatInterface() {
   const formatDate = (date: Date) => {
     const today = new Date();
     const messageDate = new Date(date);
-    
+
     if (messageDate.toDateString() === today.toDateString()) {
       return 'Today';
     }
-    
+
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    
+
     if (messageDate.toDateString() === yesterday.toDateString()) {
       return 'Yesterday';
     }
-    
+
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
       day: 'numeric',
@@ -464,12 +525,12 @@ export function ChatInterface() {
 
   if (!room) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white">
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 via-neutral-50 to-stone-50">
         <div className="text-center">
-          <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Hash className="w-8 h-8 text-neutral-400" />
+          <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <Hash className="w-10 h-10 text-white" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Room not found</h3>
+          <h3 className="text-2xl font-bold text-black mb-3">Room not found</h3>
           <p className="text-neutral-600">The room you're looking for doesn't exist.</p>
         </div>
       </div>
@@ -477,60 +538,52 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-zinc-50 via-neutral-50 to-stone-50">
       {/* Chat Header - Sticky */}
-      <div className="sticky top-0 z-10 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-neutral-200 px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-neutral-900 rounded-lg flex items-center justify-center">
-            <Hash className="w-5 h-5 text-white" />
+          <div className="w-11 h-11 bg-black rounded-xl flex items-center justify-center shadow-md">
+            <Hash className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-neutral-900">{room.name}</h1>
-            <div className="flex items-center space-x-4 text-sm text-neutral-500">
-              <span>{members.length} members</span>
+            <h1 className="text-lg font-bold text-black">{room.name}</h1>
+            <div className="flex items-center space-x-3 text-sm text-neutral-500">
+              <span className="font-medium">{members.length} members</span>
               {room.code && (
-                <span className="inline-flex items-center px-2 py-1 bg-neutral-100 text-neutral-700 rounded text-xs font-mono">
+                <span className="inline-flex items-center px-2.5 py-1 bg-neutral-900 text-white rounded-md text-xs font-semibold tracking-wide shadow-sm">
                   #{room.code}
                 </span>
               )}
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-2">
-          <button
-            className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
-            title="Voice Call"
-          >
-            <Phone className="w-5 h-5 text-neutral-600" />
-          </button>
-          <button
-            className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
-            title="Video Call"
-          >
-            <Video className="w-5 h-5 text-neutral-600" />
-          </button>
+
           <button
             onClick={() => setShowMembers(!showMembers)}
-            className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
+            className={`p-2.5 rounded-xl transition-all ${showMembers
+                ? 'bg-black text-white shadow-md'
+                : 'hover:bg-neutral-100 text-neutral-700'
+              }`}
             title="Members"
           >
-            <Users className="w-5 h-5 text-neutral-600" />
+            <Users className="w-5 h-5" />
           </button>
           <button
             onClick={async () => {
               if (!roomId || !user) return;
-              
+
               try {
                 // Leave the room via API
                 await apiClient.leaveRoom(roomId);
-                
+
                 // Leave the room via socket
                 socketClient.leaveRoom(roomId);
-                
+
                 // Remove the room from local store
                 removeRoom(roomId);
-                
+
                 // Navigate to home page
                 navigate({ to: '/' });
               } catch (error) {
@@ -539,7 +592,7 @@ export function ChatInterface() {
                 navigate({ to: '/' });
               }
             }}
-            className="px-3 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-black text-white rounded-xl hover:bg-neutral-800 transition-all text-sm font-semibold shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-black/20"
             title="Leave Room"
           >
             Leave Room
@@ -550,16 +603,16 @@ export function ChatInterface() {
       {/* Messages Area */}
       <div className="flex-1 flex min-h-0">
         {/* Messages */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 bg-white/50">
           {/* Messages Container - Scrollable */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
             {messages.length === 0 ? (
               <div className="flex-1 flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Hash className="w-8 h-8 text-neutral-400" />
+                  <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                    <Hash className="w-10 h-10 text-neutral-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-neutral-900 mb-2">Welcome to #{room?.name || 'room'}</h3>
+                  <h3 className="text-xl font-bold text-black mb-3">Welcome to #{room?.name || 'room'}</h3>
                   <p className="text-neutral-600">This is the beginning of your conversation.</p>
                 </div>
               </div>
@@ -568,51 +621,50 @@ export function ChatInterface() {
                 const isOwnMessage = user && message.userId === user.id;
                 const showAvatar = !isOwnMessage && (index === 0 || messages[index - 1].userId !== message.userId);
                 const showDate = index === 0 || formatDate(messages[index - 1].createdAt) !== formatDate(message.createdAt);
-                
+
                 return (
                   <div key={message.id}>
                     {/* Date Divider */}
                     {showDate && (
-                      <div className="flex items-center justify-center py-4">
-                        <div className="bg-neutral-100 text-neutral-600 text-xs px-3 py-1 rounded-full flex items-center space-x-1">
-                          <Clock className="w-3 h-3" />
+                      <div className="flex items-center justify-center py-6">
+                        <div className="bg-neutral-100 text-neutral-700 text-xs font-semibold px-4 py-2 rounded-full flex items-center space-x-2 shadow-sm border border-neutral-200">
+                          <Clock className="w-3.5 h-3.5" />
                           <span>{formatDate(message.createdAt)}</span>
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Message */}
-                    <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2`}>
+                    <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-1`}>
                       <div className={`flex ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} items-end space-x-2 max-w-lg`}>
                         {/* Avatar */}
                         {!isOwnMessage && (
-                          <div className={`w-8 h-8 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
-                            <div className="w-8 h-8 bg-neutral-600 rounded-full flex items-center justify-center">
-                              <span className="text-xs font-medium text-white">
+                          <div className={`w-9 h-9 flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+                            <div className="w-9 h-9 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-xl flex items-center justify-center shadow-sm">
+                              <span className="text-sm font-bold text-white">
                                 {message.author?.username?.charAt(0).toUpperCase() || 'U'}
                               </span>
                             </div>
                           </div>
                         )}
-                        
+
                         {/* Message Bubble */}
                         <div className={`${isOwnMessage ? 'ml-2' : 'mr-2'}`}>
                           {/* Author name for other users */}
                           {!isOwnMessage && showAvatar && (
-                            <div className="text-xs text-neutral-600 mb-1 px-3">
+                            <div className="text-xs font-semibold text-neutral-700 mb-1.5 px-4">
                               {message.author?.username || 'Anonymous User'}
                             </div>
                           )}
-                          
+
                           <div
-                            className={`px-4 py-3 rounded-2xl ${
-                              isOwnMessage
-                                ? 'bg-neutral-900 text-white'
-                                : 'bg-white border border-neutral-200 text-neutral-900'
-                            } shadow-sm`}
+                            className={`px-5 py-3.5 rounded-2xl ${isOwnMessage
+                                ? 'bg-black text-white shadow-lg shadow-black/10'
+                                : 'bg-white border-2 border-neutral-200 text-neutral-900 shadow-sm'
+                              }`}
                           >
-                            <p className="text-sm leading-relaxed">{message.content}</p>
-                            <div className={`text-xs mt-1 ${isOwnMessage ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                            <p className="text-[15px] leading-relaxed">{message.content}</p>
+                            <div className={`text-[11px] mt-2 font-medium ${isOwnMessage ? 'text-neutral-400' : 'text-neutral-500'}`}>
                               {formatTime(message.createdAt)}
                             </div>
                           </div>
@@ -623,41 +675,41 @@ export function ChatInterface() {
                 );
               })
             )}
-            
+
             {/* Typing Indicators */}
             {typingUsers.length > 0 && (
               <div className="flex justify-start mb-4">
-                <div className="flex items-center space-x-2 max-w-lg">
-                  <div className="w-8 h-8 bg-neutral-100 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-neutral-400 rounded-full animate-pulse"></div>
+                <div className="flex items-center space-x-3 max-w-lg">
+                  <div className="w-9 h-9 bg-neutral-100 rounded-xl flex items-center justify-center border border-neutral-200">
+                    <div className="w-2 h-2 bg-neutral-500 rounded-full animate-pulse"></div>
                   </div>
-                  <div className="bg-white border border-neutral-200 px-4 py-3 rounded-2xl shadow-sm">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-neutral-600">
-                        {typingUsers.length === 1 
+                  <div className="bg-white border-2 border-neutral-200 px-5 py-3.5 rounded-2xl shadow-sm">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm text-neutral-700 font-medium">
+                        {typingUsers.length === 1
                           ? `${typingUsers[0].username} is typing`
                           : typingUsers.length === 2
-                          ? `${typingUsers[0].username} and ${typingUsers[1].username} are typing`
-                          : `${typingUsers.slice(0, 2).map(u => u.username).join(', ')} and ${typingUsers.length - 2} more are typing`
+                            ? `${typingUsers[0].username} and ${typingUsers[1].username} are typing`
+                            : `${typingUsers.slice(0, 2).map(u => u.username).join(', ')} and ${typingUsers.length - 2} more are typing`
                         }
                       </span>
                       <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-            
+
             {/* Scroll anchor */}
             <div ref={messagesEndRef} />
           </div>
 
           {/* Message Input */}
-          <div className="bg-white border-t border-neutral-200 px-6 py-4 relative">
+          <div className="bg-white border-t-2 border-neutral-200 px-6 py-5 relative shadow-lg">
             <form onSubmit={handleSendMessage} className="flex items-center space-x-3">
               <div className="flex-1 relative">
                 <input
@@ -667,31 +719,82 @@ export function ChatInterface() {
                   value={messageInput}
                   onChange={handleInputChange}
                   onBlur={handleInputBlur}
-                  className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-transparent transition-all"
+                  className="w-full px-5 py-3.5 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-black placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all font-medium"
                   autoComplete="off"
                 />
               </div>
-              
+
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={`p-2 rounded-lg transition-colors ${
-                  showEmojiPicker ? 'bg-neutral-100 text-neutral-700' : 'hover:bg-neutral-100'
-                }`}
+                className={`p-3 rounded-xl transition-all ${showEmojiPicker
+                    ? 'bg-neutral-900 text-white shadow-lg'
+                    : 'hover:bg-neutral-100 text-neutral-600'
+                  }`}
                 title="Emoji"
               >
-                <Smile className="w-5 h-5 text-neutral-500" />
+                <Smile className="w-5 h-5" />
               </button>
-              
+
               <button
                 type="submit"
                 disabled={!messageInput.trim()}
-                className="p-2 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="p-3 rounded-xl bg-black text-white hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-black/20"
                 title="Send Message"
               >
                 <Send className="w-5 h-5" />
               </button>
             </form>
+
+            {/* Mentions Dropdown */}
+            {showMentionsList && (
+              <div className="absolute bottom-24 left-6 bg-white border-2 border-neutral-200 rounded-2xl shadow-2xl max-h-72 overflow-y-auto w-72 z-50">
+                {/* @everyone option */}
+                <button
+                  type="button"
+                  onClick={() => handleMentionSelect('everyone')}
+                  className="w-full px-4 py-3.5 flex items-center space-x-3 hover:bg-neutral-50 transition-all border-b border-neutral-100 group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-neutral-700 to-neutral-900 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                    @
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="text-sm font-bold text-black group-hover:text-neutral-700 transition-colors">everyone</div>
+                    <div className="text-xs text-neutral-500">Mention all members</div>
+                  </div>
+                </button>
+
+                {/* Filtered members */}
+                {filteredMentions.length > 0 ? (
+                  filteredMentions.map((member) => (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => handleMentionSelect(member.username || '')}
+                      className="w-full px-4 py-3.5 flex items-center space-x-3 hover:bg-neutral-50 transition-all group"
+                    >
+                      <div className="relative">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-neutral-600 to-neutral-800 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                          {member.username?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white shadow-sm ${member.isOnline ? 'bg-green-500' : 'bg-neutral-400'
+                          }`}></div>
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="text-sm font-semibold text-black group-hover:text-neutral-700 transition-colors">{member.username}</div>
+                        <div className="text-xs text-neutral-500 font-medium">
+                          {member.isOnline ? 'Active' : 'Offline'}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-10 text-center text-neutral-500 text-sm font-medium">
+                    No members found
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Emoji Picker */}
             <EmojiPicker
@@ -715,42 +818,151 @@ export function ChatInterface() {
 
         {/* Members Sidebar */}
         {showMembers && (
-          <div className="w-64 bg-white border-l border-neutral-200 flex flex-col">
-            <div className="p-4 border-b border-neutral-200">
-              <h3 className="text-lg font-semibold text-neutral-900">Members</h3>
-              <p className="text-sm text-neutral-500">{members.length} members</p>
+          <div className="w-80 bg-gradient-to-b from-white to-neutral-50 border-l-2 border-neutral-200 flex flex-col shadow-2xl">
+            {/* Members List Section */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="p-5 border-b-2 border-neutral-200 bg-white">
+                <h3 className="text-xl font-bold text-black mb-1">Members</h3>
+                <p className="text-sm text-neutral-600 font-medium">{members.length} online</p>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
+                {members.map((member) => {
+                  const isActive = activeUsers.has(member.id);
+                  const inVoice = voiceParticipants.includes(member.id);
+                  return (
+                    <div key={member.id} className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white transition-all group border border-transparent hover:border-neutral-200 hover:shadow-sm">
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-xl flex items-center justify-center shadow-sm">
+                          <span className="text-sm font-bold text-white">
+                            {member.username?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ${isActive ? 'bg-green-500' : 'bg-neutral-400'
+                          }`}></div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <div className="text-sm font-semibold text-black truncate group-hover:text-neutral-700 transition-colors">
+                            {member.username}
+                          </div>
+                          {inVoice && (
+                            <div className="flex items-center bg-green-50 px-1.5 py-0.5 rounded-md">
+                              <Phone className="w-3 h-3 text-green-700" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-1.5 mt-0.5">
+                          <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500' : 'bg-neutral-400'
+                            }`}></div>
+                          <span className="text-xs text-neutral-500 font-medium">
+                            {isActive ? 'Active' : 'Offline'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {members.map((member) => {
-                const isActive = activeUsers.has(member.id);
-                return (
-                  <div key={member.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-neutral-50">
-                    <div className="relative">
-                      <div className="w-8 h-8 bg-neutral-600 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-white">
-                          {member.username?.charAt(0).toUpperCase() || 'U'}
-                        </span>
-                      </div>
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
-                        isActive ? 'bg-green-500' : 'bg-red-500'
-                      }`}></div>
+
+            {/* Voice Chat Section */}
+            <div className="border-t-2 border-neutral-200 bg-white">
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-bold text-black">Voice Chat</h4>
+                  {isInVoiceCall && (
+                    <div className="flex items-center space-x-1.5 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+                      <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
+                      <span>Connected</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-neutral-900 truncate">
-                        {member.username}
+                  )}
+                </div>
+
+                {/* Voice Controls */}
+                <div className="space-y-2.5">
+                  {!isInVoiceCall ? (
+                    <button
+                      onClick={() => {
+                        setIsInVoiceCall(true);
+                        setVoiceParticipants([...voiceParticipants, user?.id || '']);
+                      }}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all font-semibold text-sm shadow-lg shadow-green-600/20 hover:shadow-xl hover:shadow-green-600/30"
+                    >
+                      <Phone className="w-4 h-4" />
+                      <span>Join Voice Call</span>
+                    </button>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {/* Mute/Unmute and Leave buttons */}
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setIsMuted(!isMuted)}
+                          className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl transition-all text-sm font-semibold shadow-sm ${isMuted
+                              ? 'bg-red-50 text-red-700 hover:bg-red-100 border-2 border-red-200'
+                              : 'bg-neutral-100 text-black hover:bg-neutral-200 border-2 border-neutral-200'
+                            }`}
+                        >
+                          {isMuted ? (
+                            <>
+                              <MicOff className="w-4 h-4" />
+                              <span>Unmute</span>
+                            </>
+                          ) : (
+                            <>
+                              <Mic className="w-4 h-4" />
+                              <span>Mute</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsInVoiceCall(false);
+                            setIsMuted(false);
+                            setVoiceParticipants(voiceParticipants.filter(id => id !== user?.id));
+                          }}
+                          className="px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-lg shadow-red-600/20"
+                          title="Leave Voice Call"
+                        >
+                          <PhoneOff className="w-4 h-4" />
+                        </button>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <div className={`w-2 h-2 rounded-full ${
-                          isActive ? 'bg-green-500' : 'bg-red-500'
-                        }`}></div>
-                        <span className="text-xs text-neutral-500">
-                          {isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
+
+                      {/* Voice Participants */}
+                      {voiceParticipants.length > 0 && (
+                        <div className="mt-4">
+                          <div className="text-xs font-bold text-black mb-2.5">
+                            In Call ({voiceParticipants.length})
+                          </div>
+                          <div className="space-y-1.5 max-h-28 overflow-y-auto">
+                            {members
+                              .filter(m => voiceParticipants.includes(m.id))
+                              .map((member) => (
+                                <div key={member.id} className="flex items-center space-x-2.5 p-2 rounded-lg bg-neutral-50 border border-neutral-200">
+                                  <div className="w-7 h-7 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-lg flex items-center justify-center shadow-sm">
+                                    <span className="text-xs font-bold text-white">
+                                      {member.username?.charAt(0).toUpperCase() || 'U'}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-black flex-1 truncate font-medium">
+                                    {member.username}
+                                    {member.id === user?.id && ' (You)'}
+                                  </span>
+                                  <div className="flex items-center">
+                                    {member.id === user?.id && isMuted ? (
+                                      <MicOff className="w-3 h-3 text-red-600" />
+                                    ) : (
+                                      <Mic className="w-3 h-3 text-green-600" />
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

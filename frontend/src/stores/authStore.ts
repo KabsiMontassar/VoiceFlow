@@ -30,6 +30,14 @@ interface AuthState {
 
 // Token refresh interval (13 minutes - before 15 minute expiry)
 const TOKEN_REFRESH_INTERVAL = 13 * 60 * 1000;
+// Token expiry time (15 minutes)
+const TOKEN_EXPIRY_TIME = 15 * 60 * 1000;
+
+// Helper function to check if token is expired
+const isTokenExpired = (lastRefresh: number | null): boolean => {
+  if (!lastRefresh) return true;
+  return Date.now() - lastRefresh > TOKEN_EXPIRY_TIME;
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -53,8 +61,32 @@ export const useAuthStore = create<AuthState>()(
           hasAccessToken: !!state.accessToken,
           hasRefreshToken: !!state.refreshToken,
           hasUser: !!state.user,
-          isAuthenticated: state.isAuthenticated
+          isAuthenticated: state.isAuthenticated,
+          lastTokenRefresh: state.lastTokenRefresh
         });
+        
+        // Check if token is expired
+        if (state.lastTokenRefresh && isTokenExpired(state.lastTokenRefresh)) {
+          console.log('AuthStore: Token expired, redirecting to login...');
+          
+          // Clear auth state
+          set({
+            user: null,
+            accessToken: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            isHydrated: true,
+          });
+          
+          // Clear tokens from apiClient
+          apiClient.clearTokensOnly();
+          
+          // Redirect to login if not already there
+          if (!window.location.pathname.includes('/login')) {
+            window.location.replace('/login');
+          }
+          return;
+        }
         
         if (state.accessToken && state.refreshToken && state.user) {
           // Tokens are already set in apiClient during rehydration
@@ -69,14 +101,27 @@ export const useAuthStore = create<AuthState>()(
           // Setup automatic token refresh
           const setupTokenRefresh = () => {
             const currentState = get();
-            if (currentState.isAuthenticated && currentState.refreshToken) {
-              setTimeout(async () => {
-                const refreshed = await currentState.refreshAuth();
+            
+            // Don't setup refresh if not authenticated or on login page
+            if (!currentState.isAuthenticated || !currentState.refreshToken || window.location.pathname.includes('/login')) {
+              console.log('AuthStore: Skipping token refresh setup');
+              return;
+            }
+            
+            setTimeout(async () => {
+              const state = get();
+              
+              // Double check we're still authenticated before refreshing
+              if (state.isAuthenticated && state.refreshToken && !window.location.pathname.includes('/login')) {
+                console.log('AuthStore: Running scheduled token refresh...');
+                const refreshed = await state.refreshAuth();
                 if (refreshed) {
                   setupTokenRefresh(); // Schedule next refresh
+                } else {
+                  console.log('AuthStore: Token refresh failed, stopping refresh cycle');
                 }
-              }, TOKEN_REFRESH_INTERVAL);
-            }
+              }
+            }, TOKEN_REFRESH_INTERVAL);
           };
           
           setupTokenRefresh();
@@ -149,8 +194,9 @@ export const useAuthStore = create<AuthState>()(
           
           return false;
         } catch (error) {
-          console.warn('AuthStore: Token refresh failed, logging out...');
-          // Clear auth state but DON'T call logout (to prevent loops)
+          console.warn('AuthStore: Token refresh failed');
+          // Clear auth state but DON'T call logout or redirect
+          // The API interceptor will handle the redirect
           set({
             user: null,
             accessToken: null,
@@ -158,11 +204,6 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             error: 'Session expired. Please login again.',
           });
-          
-          // Redirect to login if not already there
-          if (!window.location.pathname.includes('/login')) {
-            window.location.replace('/login');
-          }
           
           return false;
         }
@@ -231,12 +272,23 @@ export const useAuthStore = create<AuthState>()(
           
           // Setup automatic token refresh
           const setupTokenRefresh = () => {
+            // Don't setup refresh if on login page
+            if (window.location.pathname.includes('/login')) {
+              console.log('AuthStore: Skipping token refresh setup (on login page)');
+              return;
+            }
+            
             setTimeout(async () => {
               const state = get();
-              if (state.isAuthenticated && state.refreshToken) {
+              
+              // Double check we're still authenticated before refreshing
+              if (state.isAuthenticated && state.refreshToken && !window.location.pathname.includes('/login')) {
+                console.log('AuthStore: Running scheduled token refresh...');
                 const refreshed = await state.refreshAuth();
                 if (refreshed) {
                   setupTokenRefresh(); // Schedule next refresh
+                } else {
+                  console.log('AuthStore: Token refresh failed, stopping refresh cycle');
                 }
               }
             }, TOKEN_REFRESH_INTERVAL);

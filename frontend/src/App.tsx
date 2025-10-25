@@ -11,10 +11,10 @@ type AppProps = { router: TanstackRouter };
 
 // Inner component that uses hooks requiring QueryClient
 const AppContent = ({ router }: AppProps): FunctionComponent => {
-	// Initialize socket authentication
+	// Initialize socket authentication (only connects if authenticated)
 	useSocketAuth();
-
-	// Initialize global rooms synchronization (requires QueryClient context)
+	
+	// Initialize global rooms synchronization (only fetches if authenticated)
 	useRoomsSync();
 
 	// Auth initialization is handled by Zustand's onRehydrateStorage callback
