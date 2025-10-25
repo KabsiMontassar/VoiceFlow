@@ -76,8 +76,19 @@
 
 /* Custom global styles */
 
+/* Full height layout */
+html, body, #root {
+  height: 100%;
+}
+
 /* Base styles */
 @layer base {
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+
   body {
     @apply bg-neutral-50 text-neutral-950 font-sans antialiased;
   }

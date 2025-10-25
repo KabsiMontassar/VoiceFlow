@@ -219,10 +219,23 @@ export class RoomService {
       where: { roomId, userId },
     });
 
-    // Update room last activity
-    const room = await RoomModel.findByPk(roomId);
-    if (room) {
-      await room.update({ lastActivity: new Date() });
+    // Check if room is now empty
+    const remainingMembers = await RoomUserModel.count({
+      where: { roomId },
+    });
+
+    if (remainingMembers === 0) {
+      // Delete the empty room
+      await RoomModel.destroy({
+        where: { id: roomId },
+      });
+      console.log(`Room ${roomId} deleted as it has no members`);
+    } else {
+      // Update room last activity
+      const room = await RoomModel.findByPk(roomId);
+      if (room) {
+        await room.update({ lastActivity: new Date() });
+      }
     }
   }
 

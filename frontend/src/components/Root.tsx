@@ -16,5 +16,5 @@ export function Root() {
   }
   
   // For auth routes or unauthenticated users, render pages directly
-  return <Outlet />;
+  return <div className="h-full"><Outlet /></div>;
 }

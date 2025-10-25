@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from '@tanstack/react-router';
+import { useParams, useNavigate } from '@tanstack/react-router';
 import { 
   Send, 
   Smile, 
@@ -24,14 +24,16 @@ interface TypingUser {
 
 export function ChatInterface() {
   const { roomId } = useParams({ from: '/room/$roomId' });
+  const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { rooms } = useRoomStore();
+  const { rooms, removeRoom } = useRoomStore();
   const { currentRoomMessages, addMessage, setRoomMessages, setLoading } = useMessageStore();
   
   const [messageInput, setMessageInput] = useState('');
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [showMembers, setShowMembers] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   
@@ -79,7 +81,13 @@ export function ChatInterface() {
         try {
           const membersResponse = await apiClient.getRoomMembers(roomId);
           if (membersResponse.success && membersResponse.data) {
-            setMembers(membersResponse.data as any[]);
+            const membersList = membersResponse.data as any[];
+            setMembers(membersList);
+            
+            // Initialize online users (assume all members are online when joining)
+            // In a real app, you'd get actual presence data from the server
+            const onlineUserIds = membersList.map(member => member.id);
+            setOnlineUsers(new Set(onlineUserIds));
           }
         } catch (error) {
           console.warn('Failed to load room members:', error);
@@ -149,6 +157,8 @@ export function ChatInterface() {
           }
           return prev;
         });
+        // Add user to online users
+        setOnlineUsers(prev => new Set([...prev, data.user.id]));
       }
     };
 
@@ -156,6 +166,27 @@ export function ChatInterface() {
       console.log('User left room:', data);
       setMembers(prev => prev.filter(m => m.id !== data.userId));
       setTypingUsers(prev => prev.filter(u => u.userId !== data.userId));
+      // Remove user from online users
+      setOnlineUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(data.userId);
+        return newSet;
+      });
+    };
+
+    const handlePresenceUpdate = (data: any) => {
+      console.log('Presence update:', data);
+      if (data.userId && data.status) {
+        setOnlineUsers(prev => {
+          const newSet = new Set(prev);
+          if (data.status === 'online') {
+            newSet.add(data.userId);
+          } else {
+            newSet.delete(data.userId);
+          }
+          return newSet;
+        });
+      }
     };
 
     // Register event listeners
@@ -164,6 +195,8 @@ export function ChatInterface() {
     socketClient.on('user_typing', handleTyping);
     socketClient.on('user_joined_room', handleUserJoinedRoom);
     socketClient.on('user_left_room', handleUserLeftRoom);
+    socketClient.on('presence_update', handlePresenceUpdate);
+    socketClient.on('room_presence_update', handlePresenceUpdate);
 
     return () => {
       // Clean up event listeners
@@ -172,6 +205,8 @@ export function ChatInterface() {
       socketClient.off('user_typing', handleTyping);
       socketClient.off('user_joined_room', handleUserJoinedRoom);
       socketClient.off('user_left_room', handleUserLeftRoom);
+      socketClient.off('presence_update', handlePresenceUpdate);
+      socketClient.off('room_presence_update', handlePresenceUpdate);
       
       // Leave room and stop typing
       socketClient.typingStop(roomId);
@@ -295,8 +330,8 @@ export function ChatInterface() {
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      {/* Chat Header */}
-      <div className="bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+      {/* Chat Header - Sticky */}
+      <div className="sticky top-0 z-10 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-neutral-900 rounded-lg flex items-center justify-center">
             <Hash className="w-5 h-5 text-white" />
@@ -335,9 +370,26 @@ export function ChatInterface() {
             <Users className="w-5 h-5 text-neutral-600" />
           </button>
           <button
-            onClick={() => {
-              // Navigate back to dashboard
-              window.history.back();
+            onClick={async () => {
+              if (!roomId || !user) return;
+              
+              try {
+                // Leave the room via API
+                await apiClient.leaveRoom(roomId);
+                
+                // Leave the room via socket
+                socketClient.leaveRoom(roomId);
+                
+                // Remove the room from local store
+                removeRoom(roomId);
+                
+                // Navigate to home page
+                navigate({ to: '/' });
+              } catch (error) {
+                console.error('Failed to leave room:', error);
+                // Still navigate away even if API call fails
+                navigate({ to: '/' });
+              }
             }}
             className="px-3 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors text-sm font-medium"
             title="Leave Room"
@@ -348,23 +400,23 @@ export function ChatInterface() {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         {/* Messages */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
-            <div className="flex flex-col space-y-4">
-              {messages.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center min-h-[400px]">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Hash className="w-8 h-8 text-neutral-400" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-neutral-900 mb-2">Welcome to #{room?.name || 'room'}</h3>
-                    <p className="text-neutral-600">This is the beginning of your conversation.</p>
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Messages Container - Scrollable */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            {messages.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Hash className="w-8 h-8 text-neutral-400" />
                   </div>
+                  <h3 className="text-lg font-semibold text-neutral-900 mb-2">Welcome to #{room?.name || 'room'}</h3>
+                  <p className="text-neutral-600">This is the beginning of your conversation.</p>
                 </div>
-              ) : (
-                messages.map((message, index) => {
+              </div>
+            ) : (
+              messages.map((message, index) => {
                 const isOwnMessage = user && message.userId === user.id;
                 const showAvatar = !isOwnMessage && (index === 0 || messages[index - 1].userId !== message.userId);
                 const showDate = index === 0 || formatDate(messages[index - 1].createdAt) !== formatDate(message.createdAt);
@@ -452,10 +504,9 @@ export function ChatInterface() {
               </div>
             )}
             
+            {/* Scroll anchor */}
             <div ref={messagesEndRef} />
-            </div>
           </div>
-        </div>
 
           {/* Message Input */}
           <div className="bg-white border-t border-neutral-200 px-6 py-4 relative">
@@ -522,28 +573,40 @@ export function ChatInterface() {
               <p className="text-sm text-neutral-500">{members.length} members</p>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {members.map((member) => (
-                <div key={member.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-neutral-50">
-                  <div className="w-8 h-8 bg-neutral-600 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-white">
-                      {member.username?.charAt(0).toUpperCase() || 'U'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-neutral-900 truncate">
-                      {member.username}
+              {members.map((member) => {
+                const isOnline = onlineUsers.has(member.id);
+                return (
+                  <div key={member.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-neutral-50">
+                    <div className="relative">
+                      <div className="w-8 h-8 bg-neutral-600 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-white">
+                          {member.username?.charAt(0).toUpperCase() || 'U'}
+                        </span>
+                      </div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
+                        isOnline ? 'bg-green-500' : 'bg-red-500'
+                      }`}></div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-xs text-neutral-500">Online</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-neutral-900 truncate">
+                        {member.username}
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <div className={`w-2 h-2 rounded-full ${
+                          isOnline ? 'bg-green-500' : 'bg-red-500'
+                        }`}></div>
+                        <span className="text-xs text-neutral-500">
+                          {isOnline ? 'Online' : 'Offline'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
       </div>
-    
+    </div>
   );
 }
