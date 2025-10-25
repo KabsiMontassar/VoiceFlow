@@ -65,6 +65,17 @@ export function ChatInterface() {
       try {
         setIsLoadingMessages(true);
         
+        // First, ensure user is joined to the room
+        try {
+          await apiClient.joinRoom(roomId);
+          console.log('Successfully joined room:', roomId);
+        } catch (error: any) {
+          // Ignore "already in room" errors
+          if (!error.message?.includes('Already in this room')) {
+            console.warn('Failed to join room:', error);
+          }
+        }
+        
         // Load messages for this room
         console.log('Loading messages for room:', roomId);
         const messagesResponse = await apiClient.getRoomMessages(roomId);
@@ -81,13 +92,44 @@ export function ChatInterface() {
         try {
           const membersResponse = await apiClient.getRoomMembers(roomId);
           if (membersResponse.success && membersResponse.data) {
-            const membersList = membersResponse.data as any[];
+            const membersData = membersResponse.data as any[];
+            console.log('Raw members data:', membersData);
+            
+            // Extract user data from the RoomUser structure
+            const membersList = membersData.map(memberData => {
+              // Handle different possible structures
+              if (memberData.user) {
+                return {
+                  id: memberData.user.id,
+                  username: memberData.user.username,
+                  email: memberData.user.email,
+                  joinedAt: memberData.joinedAt,
+                  role: memberData.role
+                };
+              } else {
+                // Fallback if structure is different
+                return memberData;
+              }
+            });
+            
+            console.log('Processed members list:', membersList);
             setMembers(membersList);
             
-            // Initialize online users (assume all members are online when joining)
-            // In a real app, you'd get actual presence data from the server
-            const onlineUserIds = membersList.map(member => member.id);
-            setOnlineUsers(new Set(onlineUserIds));
+            // Ensure current user is in the members list
+            const currentUserInMembers = membersList.find(member => member.id === user.id);
+            if (!currentUserInMembers) {
+              console.log('Adding current user to members list');
+              setMembers(prev => [...prev, {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: 'member'
+              }]);
+            }
+            
+            // Initialize online users - only current user is online initially
+            // Other users will be marked online when they actually join the room via socket events
+            setOnlineUsers(new Set([user.id]));
           }
         } catch (error) {
           console.warn('Failed to load room members:', error);
@@ -153,7 +195,12 @@ export function ChatInterface() {
         setMembers(prev => {
           const existing = prev.find(m => m.id === data.user.id);
           if (!existing) {
-            return [...prev, data.user];
+            return [...prev, {
+              id: data.user.id,
+              username: data.user.username,
+              email: data.user.email,
+              role: 'member'
+            }];
           }
           return prev;
         });
@@ -189,6 +236,23 @@ export function ChatInterface() {
       }
     };
 
+    const handleRoomPresenceUpdate = (data: any) => {
+      console.log('Room presence update:', data);
+      if (data.users && Array.isArray(data.users)) {
+        // Update online users based on room presence data
+        const onlineUserIds = data.users
+          .filter((userPresence: any) => userPresence.status === 'online')
+          .map((userPresence: any) => userPresence.userId);
+        
+        // Always ensure current user stays online if they're in the room
+        if (user && !onlineUserIds.includes(user.id)) {
+          onlineUserIds.push(user.id);
+        }
+        
+        setOnlineUsers(new Set(onlineUserIds));
+      }
+    };
+
     // Register event listeners
     socketClient.on('new_message', handleNewMessage);
     socketClient.on('message_sent', handleMessageSent);
@@ -196,7 +260,7 @@ export function ChatInterface() {
     socketClient.on('user_joined_room', handleUserJoinedRoom);
     socketClient.on('user_left_room', handleUserLeftRoom);
     socketClient.on('presence_update', handlePresenceUpdate);
-    socketClient.on('room_presence_update', handlePresenceUpdate);
+    socketClient.on('room_presence_update', handleRoomPresenceUpdate);
 
     return () => {
       // Clean up event listeners
@@ -206,7 +270,7 @@ export function ChatInterface() {
       socketClient.off('user_joined_room', handleUserJoinedRoom);
       socketClient.off('user_left_room', handleUserLeftRoom);
       socketClient.off('presence_update', handlePresenceUpdate);
-      socketClient.off('room_presence_update', handlePresenceUpdate);
+      socketClient.off('room_presence_update', handleRoomPresenceUpdate);
       
       // Leave room and stop typing
       socketClient.typingStop(roomId);
@@ -441,7 +505,7 @@ export function ChatInterface() {
                           <div className={`w-8 h-8 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
                             <div className="w-8 h-8 bg-neutral-600 rounded-full flex items-center justify-center">
                               <span className="text-xs font-medium text-white">
-                                {message.userId?.charAt(0).toUpperCase() || 'U'}
+                                {message.author?.username?.charAt(0).toUpperCase() || 'U'}
                               </span>
                             </div>
                           </div>
@@ -452,7 +516,7 @@ export function ChatInterface() {
                           {/* Author name for other users */}
                           {!isOwnMessage && showAvatar && (
                             <div className="text-xs text-neutral-600 mb-1 px-3">
-                              User {message.userId.slice(0, 8)}
+                              {message.author?.username || 'Anonymous User'}
                             </div>
                           )}
                           

@@ -1,18 +1,18 @@
 import { create } from 'zustand';
-import { Message } from '../../../shared/src';
+import { MessageWithAuthor } from '../../../shared/src';
 
 interface MessageState {
-  messages: Message[];
-  currentRoomMessages: Record<string, Message[]>;
+  messages: MessageWithAuthor[];
+  currentRoomMessages: Record<string, MessageWithAuthor[]>;
   isLoading: boolean;
   error: string | null;
 
   // Actions
-  setMessages: (messages: Message[]) => void;
-  setRoomMessages: (roomId: string, messages: Message[]) => void;
-  addMessage: (roomId: string, message: Message) => void;
+  setMessages: (messages: MessageWithAuthor[]) => void;
+  setRoomMessages: (roomId: string, messages: MessageWithAuthor[]) => void;
+  addMessage: (roomId: string, message: MessageWithAuthor) => void;
   removeMessage: (messageId: string, roomId: string) => void;
-  updateMessage: (messageId: string, roomId: string, message: Message) => void;
+  updateMessage: (messageId: string, roomId: string, message: MessageWithAuthor) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearRoomMessages: (roomId: string) => void;
@@ -24,9 +24,9 @@ export const useMessageStore = create<MessageState>((set) => ({
   isLoading: false,
   error: null,
 
-  setMessages: (messages: Message[]) => set({ messages }),
+  setMessages: (messages: MessageWithAuthor[]) => set({ messages }),
 
-  setRoomMessages: (roomId: string, messages: Message[]) =>
+  setRoomMessages: (roomId: string, messages: MessageWithAuthor[]) =>
     set((state) => ({
       currentRoomMessages: {
         ...state.currentRoomMessages,
@@ -34,7 +34,7 @@ export const useMessageStore = create<MessageState>((set) => ({
       },
     })),
 
-  addMessage: (roomId: string, message: Message) =>
+  addMessage: (roomId: string, message: MessageWithAuthor) =>
     set((state) => ({
       currentRoomMessages: {
         ...state.currentRoomMessages,
@@ -52,7 +52,7 @@ export const useMessageStore = create<MessageState>((set) => ({
       },
     })),
 
-  updateMessage: (messageId: string, roomId: string, message: Message) =>
+  updateMessage: (messageId: string, roomId: string, message: MessageWithAuthor) =>
     set((state) => ({
       currentRoomMessages: {
         ...state.currentRoomMessages,
