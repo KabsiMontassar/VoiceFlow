@@ -18,4 +18,41 @@ export default defineConfig({
 		strictPort: true,
 		port: 5173,
 	},
+	build: {
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					// React and core dependencies
+					'react-vendor': ['react', 'react-dom'],
+					
+					// TanStack ecosystem
+					'tanstack-router': ['@tanstack/react-router'],
+					'tanstack-query': ['@tanstack/react-query'],
+					
+					// State management
+					'zustand': ['zustand'],
+					
+					// Socket.IO
+					'socket-io': ['socket.io-client'],
+					
+					// UI libraries
+					'ui-libs': [
+						'lucide-react',
+						'react-hook-form',
+						'@hookform/resolvers',
+						'zod'
+					],
+					
+					// HTTP client
+					'axios': ['axios'],
+				},
+			},
+		},
+		// Increase chunk size warning limit to 600kb (from default 500kb)
+		chunkSizeWarningLimit: 600,
+		
+		// Enable minification
+		minify: 'terser',
+		
+	},
 });
