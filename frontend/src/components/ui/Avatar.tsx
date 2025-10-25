@@ -5,7 +5,7 @@ interface AvatarProps {
   alt?: string;
   initials?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  status?: 'online' | 'offline' | 'away';
+  status?: 'active' | 'inactive' | 'away';
 }
 
 const Avatar = ({
@@ -23,8 +23,8 @@ const Avatar = ({
   };
 
   const statusClasses = {
-    online: 'bg-green-500',
-    offline: 'bg-gray-400',
+    active: 'bg-green-500',
+    inactive: 'bg-gray-400',
     away: 'bg-yellow-500',
   };
 

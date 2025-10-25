@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import apiClient from '../services/api';
-import type { User } from '../../../shared/src';
+import type { User, UserPresenceStatus } from '../../../shared/src';
 
 interface AuthState {
   user: User | null;
@@ -11,16 +11,25 @@ interface AuthState {
   error: string | null;
   isAuthenticated: boolean;
   isHydrated: boolean;
+  lastTokenRefresh: number | null;
 
   // Actions
   register: (email: string, username: string, password: string, confirmPassword: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
+  refreshAuth: () => Promise<boolean>;
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;
   clearError: () => void;
   initializeAuth: () => void;
+  checkAuthStatus: () => Promise<boolean>;
+  getSessions: () => Promise<any[]>;
+  updateUserStatus: (status: UserPresenceStatus) => void;
 }
+
+// Token refresh interval (13 minutes - before 15 minute expiry)
+const TOKEN_REFRESH_INTERVAL = 13 * 60 * 1000;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -32,60 +41,113 @@ export const useAuthStore = create<AuthState>()(
       error: null,
       isAuthenticated: false,
       isHydrated: false,
+      lastTokenRefresh: null,
 
-      initializeAuth: () => {
+      initializeAuth: async () => {
         console.log('AuthStore: Initializing auth...');
-        // Check if we have stored tokens and user data
-        const storedToken = localStorage.getItem('authToken') || localStorage.getItem('accessToken');
+        
+        const storedAccessToken = localStorage.getItem('accessToken');
         const storedRefreshToken = localStorage.getItem('refreshToken');
         
-        console.log('AuthStore: Stored token exists:', !!storedToken);
+        console.log('AuthStore: Stored tokens exist:', {
+          accessToken: !!storedAccessToken,
+          refreshToken: !!storedRefreshToken
+        });
         
-        if (storedToken) {
-          apiClient.setAccessToken(storedToken);
-          if (storedRefreshToken) {
-            apiClient.setRefreshToken(storedRefreshToken);
-          }
-          
-          // If we have a token, consider the user authenticated
-          // The user data should be restored by the persist middleware
-          const currentState = get();
-          console.log('AuthStore: Current user exists:', !!currentState.user);
+        if (storedAccessToken && storedRefreshToken) {
+          apiClient.setTokens(storedAccessToken, storedRefreshToken);
           
           set({
-            accessToken: storedToken,
+            accessToken: storedAccessToken,
             refreshToken: storedRefreshToken,
-            isAuthenticated: true, // If we have a token, we're authenticated
             isHydrated: true,
           });
           
-          console.log('AuthStore: Set isAuthenticated to true');
+          // Verify token validity with backend
+          const isValid = await get().checkAuthStatus();
           
-          // If we don't have user data but have a token, try to fetch current user
-          if (!currentState.user) {
-            console.log('AuthStore: Fetching current user...');
-            apiClient.getCurrentUser()
-              .then((response) => {
-                if (response.success && response.data) {
-                  console.log('AuthStore: User fetched successfully');
-                  set({ user: response.data as User });
-                }
-              })
-              .catch((error) => {
-                console.log('AuthStore: Failed to fetch user:', error);
-                // If fetching user fails, clear tokens and set as not authenticated
-                set({
-                  user: null,
-                  accessToken: null,
-                  refreshToken: null,
-                  isAuthenticated: false,
-                });
-                apiClient.clearTokens();
-              });
+          if (isValid) {
+            console.log('AuthStore: Authentication validated');
+            
+            // Setup automatic token refresh
+            const setupTokenRefresh = () => {
+              const state = get();
+              if (state.isAuthenticated && state.refreshToken) {
+                setTimeout(async () => {
+                  const refreshed = await state.refreshAuth();
+                  if (refreshed) {
+                    setupTokenRefresh(); // Schedule next refresh
+                  }
+                }, TOKEN_REFRESH_INTERVAL);
+              }
+            };
+            
+            setupTokenRefresh();
+          } else {
+            console.log('AuthStore: Token validation failed, clearing auth');
+            get().logout();
           }
         } else {
-          console.log('AuthStore: No stored token, setting hydrated to true');
+          console.log('AuthStore: No stored tokens, setting hydrated to true');
           set({ isHydrated: true });
+        }
+      },
+
+      checkAuthStatus: async () => {
+        try {
+          const response = await apiClient.getAuthStatus();
+          
+          if (response.success && response.data) {
+            const { user, isAuthenticated } = response.data as any;
+            
+            set({
+              user: user || null,
+              isAuthenticated: !!isAuthenticated,
+            });
+            
+            return !!isAuthenticated;
+          }
+          
+          return false;
+        } catch (error) {
+          console.warn('AuthStore: Auth status check failed:', error);
+          return false;
+        }
+      },
+
+      refreshAuth: async () => {
+        const { refreshToken } = get();
+        
+        if (!refreshToken) {
+          console.log('AuthStore: No refresh token available');
+          return false;
+        }
+        
+        try {
+          const response = await apiClient.refreshAccessToken(refreshToken);
+          
+          if (response.success && response.data) {
+            const { accessToken: newAccessToken, refreshToken: newRefreshToken, user } = response.data as any;
+            
+            apiClient.setTokens(newAccessToken, newRefreshToken || refreshToken);
+            
+            set({
+              accessToken: newAccessToken,
+              refreshToken: newRefreshToken || refreshToken,
+              user: user || get().user,
+              isAuthenticated: true,
+              lastTokenRefresh: Date.now(),
+            });
+            
+            console.log('AuthStore: Token refreshed successfully');
+            return true;
+          }
+          
+          return false;
+        } catch (error) {
+          console.warn('AuthStore: Token refresh failed:', error);
+          get().logout();
+          return false;
         }
       },
 
@@ -103,20 +165,17 @@ export const useAuthStore = create<AuthState>()(
             throw new Error(response.message || 'Registration failed');
           }
 
-          const userData = (response.data as any)?.user;
-          const tokens = {
-            accessToken: (response.data as any)?.accessToken,
-            refreshToken: (response.data as any)?.refreshToken,
-          };
+          const { user: userData, accessToken, refreshToken } = response.data as any;
 
-          apiClient.setTokens(tokens.accessToken, tokens.refreshToken);
+          apiClient.setTokens(accessToken, refreshToken);
 
           set({
-            user: userData,
-            accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken,
+            user: { ...userData, status: 'active' as UserPresenceStatus },
+            accessToken,
+            refreshToken,
             isAuthenticated: true,
             isLoading: false,
+            lastTokenRefresh: Date.now(),
           });
         } catch (error: any) {
           const message = error.response?.data?.message || error.message || 'Registration failed';
@@ -134,21 +193,33 @@ export const useAuthStore = create<AuthState>()(
             throw new Error(response.message || 'Login failed');
           }
 
-          const userData = (response.data as any)?.user;
-          const tokens = {
-            accessToken: (response.data as any)?.accessToken,
-            refreshToken: (response.data as any)?.refreshToken,
-          };
+          const { user: userData, accessToken, refreshToken } = response.data as any;
 
-          apiClient.setTokens(tokens.accessToken, tokens.refreshToken);
+          apiClient.setTokens(accessToken, refreshToken);
 
           set({
-            user: userData,
-            accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken,
+            user: { ...userData, status: 'active' as UserPresenceStatus },
+            accessToken,
+            refreshToken,
             isAuthenticated: true,
             isLoading: false,
+            lastTokenRefresh: Date.now(),
           });
+          
+          // Setup automatic token refresh
+          const setupTokenRefresh = () => {
+            setTimeout(async () => {
+              const state = get();
+              if (state.isAuthenticated && state.refreshToken) {
+                const refreshed = await state.refreshAuth();
+                if (refreshed) {
+                  setupTokenRefresh(); // Schedule next refresh
+                }
+              }
+            }, TOKEN_REFRESH_INTERVAL);
+          };
+          
+          setupTokenRefresh();
         } catch (error: any) {
           const message = error.response?.data?.message || error.message || 'Login failed';
           set({ error: message, isLoading: false });
@@ -156,15 +227,48 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
-        apiClient.logout();
+      logout: async () => {
+        try {
+          await apiClient.logout();
+        } catch (error) {
+          console.warn('AuthStore: Logout API call failed:', error);
+        }
+        
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
           error: null,
+          lastTokenRefresh: null,
         });
+      },
+
+      logoutAll: async () => {
+        try {
+          await apiClient.logoutAll();
+        } catch (error) {
+          console.warn('AuthStore: Logout all API call failed:', error);
+        }
+        
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          error: null,
+          lastTokenRefresh: null,
+        });
+      },
+
+      getSessions: async () => {
+        try {
+          const response = await apiClient.getUserSessions();
+          return response.success ? (response.data as any).sessions || [] : [];
+        } catch (error) {
+          console.warn('AuthStore: Failed to fetch sessions:', error);
+          return [];
+        }
       },
 
       setTokens: (accessToken: string, refreshToken: string) => {
@@ -173,16 +277,21 @@ export const useAuthStore = create<AuthState>()(
           accessToken, 
           refreshToken, 
           isAuthenticated: !!accessToken,
-          isHydrated: true 
+          isHydrated: true,
+          lastTokenRefresh: Date.now(),
         });
       },
 
       setUser: (user: User) => {
         const currentState = get();
         set({ 
-          user,
+          user: user,
           isAuthenticated: !!(user && currentState.accessToken),
         });
+      },
+
+      updateUserStatus: () => {
+        // Note: Status is managed through User type which comes from server
       },
 
       clearError: () => {
@@ -196,17 +305,18 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        lastTokenRefresh: state.lastTokenRefresh,
       }),
       onRehydrateStorage: () => (state) => {
         console.log('AuthStore: Rehydrating from storage...');
-        // After rehydration, initialize auth state
         if (state) {
           console.log('AuthStore: State after rehydration:', {
             hasUser: !!state.user,
             hasAccessToken: !!state.accessToken,
             isAuthenticated: state.isAuthenticated
           });
-          state.initializeAuth();
+          // Initialize auth after rehydration
+          setTimeout(() => state.initializeAuth(), 100);
         }
       },
     }

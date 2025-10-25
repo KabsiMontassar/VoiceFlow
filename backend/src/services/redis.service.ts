@@ -310,7 +310,7 @@ export class RedisService {
   /**
    * Store user presence with TTL
    */
-  public async setUserPresence(userId: string, status: 'online' | 'away' | 'offline', roomId?: string): Promise<void> {
+  public async setUserPresence(userId: string, status: string, roomId?: string): Promise<void> {
     if (!this.cacheClient || !this.isInitialized) return;
 
     try {

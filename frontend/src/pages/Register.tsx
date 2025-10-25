@@ -4,7 +4,6 @@ import { useMutation } from '@tanstack/react-query';
 import { ArrowLeft, Check } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import Card from '../components/ui/Card';
 import { useAuthStore } from '../stores/authStore';
 import type { FunctionComponent } from '../common/types';
 

@@ -4,6 +4,7 @@ export interface User {
   username: string;
   email: string;
   avatarUrl: string | null;
+  status: UserPresenceStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,10 +104,10 @@ export interface RTCSignalingMessage {
 
 // Presence Types
 export enum UserPresenceStatus {
-  ONLINE = 'online',
-  AWAY = 'away',
-  OFFLINE = 'offline',
-  IN_CALL = 'in_call',
+  ACTIVE = 'active',      // User is logged in and has valid session
+  INACTIVE = 'inactive',  // User is not logged in or session expired
+  AWAY = 'away',         // User is logged in but inactive
+  IN_CALL = 'in_call',   // User is in a voice/video call
 }
 
 export interface UserPresence {
@@ -115,6 +116,12 @@ export interface UserPresence {
   status: UserPresenceStatus;
   isTyping: boolean;
   lastActivity: Date;
+  sessionInfo?: {
+    sessionId?: string;
+    deviceId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  };
 }
 
 export interface TypingIndicator {

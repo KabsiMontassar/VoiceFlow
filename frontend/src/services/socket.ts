@@ -5,11 +5,13 @@ import {
   Message,
   UserPresence,
   RTCSignalingMessage,
+  UserPresenceStatus,
 } from '../../../shared/src';
 
 export interface SocketClientConfig {
   url: string;
-  token: string;
+  accessToken: string;
+  refreshToken?: string;
 }
 
 interface TypingDebounceInfo {
@@ -26,13 +28,16 @@ export class SocketClient {
   private typingDebounce = new Map<string, TypingDebounceInfo>();
   private messageQueue: any[] = [];
   private isOnline = false;
+  private currentConfig: SocketClientConfig | null = null;
 
   connect(config: SocketClientConfig): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        this.currentConfig = config;
+        
         this.socket = io(config.url, {
           auth: {
-            token: config.token,
+            token: config.accessToken,
           },
           reconnection: true,
           reconnectionDelay: this.reconnectDelay,
@@ -59,6 +64,11 @@ export class SocketClient {
           this.isOnline = false;
           console.log('[Socket] Disconnected:', reason);
           this.stopHeartbeat();
+          
+          // If disconnected due to auth error, don't try to reconnect automatically
+          if (reason === 'io server disconnect') {
+            console.warn('[Socket] Server disconnected - likely authentication issue');
+          }
         });
 
         this.socket.on('connect_error', (error: Error) => {
@@ -68,10 +78,46 @@ export class SocketClient {
           }
           this.reconnectAttempts++;
         });
+
+        // Handle authentication errors
+        this.socket.on('auth_error', (error) => {
+          console.error('[Socket] Authentication error:', error);
+          this.disconnect();
+          reject(new Error('Authentication failed'));
+        });
+
+        // Handle token expiry
+        this.socket.on('token_expired', () => {
+          console.warn('[Socket] Token expired, need to refresh');
+          // Emit event that frontend can listen to for token refresh
+          this.socket?.emit('internal_token_expired');
+        });
+
       } catch (error) {
         reject(error);
       }
     });
+  }
+
+  /**
+   * Update authentication token for existing connection
+   */
+  updateAuth(accessToken: string): void {
+    if (this.socket && this.currentConfig) {
+      this.currentConfig.accessToken = accessToken;
+      this.socket.auth = { token: accessToken };
+      
+      // Re-authenticate with new token
+      this.socket.emit('authenticate', { token: accessToken });
+    }
+  }
+
+  /**
+   * Reconnect with new authentication
+   */
+  reconnectWithAuth(config: SocketClientConfig): Promise<void> {
+    this.disconnect();
+    return this.connect(config);
   }
 
   disconnect(): void {
@@ -81,6 +127,7 @@ export class SocketClient {
       this.socket.disconnect();
       this.socket = null;
       this.isOnline = false;
+      this.currentConfig = null;
     }
   }
 
@@ -89,6 +136,19 @@ export class SocketClient {
    */
   private setupEventHandlers(): void {
     if (!this.socket) return;
+
+    // Authentication events
+    this.socket.on('authenticated', (data) => {
+      console.log('[Socket] Authenticated successfully:', data);
+    });
+
+    this.socket.on('auth_error', (error) => {
+      console.error('[Socket] Authentication error:', error);
+    });
+
+    this.socket.on('token_expired', () => {
+      console.warn('[Socket] Token expired');
+    });
 
     // Performance optimization events
     this.socket.on('rate_limit_exceeded', (data) => {
@@ -106,13 +166,21 @@ export class SocketClient {
       console.debug(`[Socket] Heartbeat latency: ${latency}ms`);
     });
 
-    // Enhanced presence events
+    // Enhanced presence events with new status system
     this.socket.on('presence_update', (data) => {
       console.debug('[Socket] Presence update:', data);
     });
 
     this.socket.on('room_presence_update', (data) => {
       console.debug('[Socket] Room presence update:', data);
+    });
+
+    this.socket.on('room_presence', (data) => {
+      console.debug('[Socket] Initial room presence:', data);
+    });
+
+    this.socket.on('user_status_changed', (data) => {
+      console.debug('[Socket] User status changed:', data);
     });
 
     // Enhanced messaging events
@@ -151,6 +219,16 @@ export class SocketClient {
       console.debug('[Socket] User left room:', data);
     });
 
+    // Session management events
+    this.socket.on('session_invalidated', () => {
+      console.warn('[Socket] Session invalidated by server');
+      this.disconnect();
+    });
+
+    this.socket.on('concurrent_login', (data) => {
+      console.warn('[Socket] Concurrent login detected:', data);
+    });
+
     // Error handling
     this.socket.on('error', (error) => {
       console.error('[Socket] Server error:', error);
@@ -161,7 +239,7 @@ export class SocketClient {
       console.error('[Socket] Connection error:', error);
     });
 
-    // Authentication errors
+    // Disconnection handling
     this.socket.on('disconnect', (reason) => {
       console.warn('[Socket] Disconnected:', reason);
       if (reason === 'io server disconnect') {
@@ -338,8 +416,8 @@ export class SocketClient {
     this.on(SOCKET_EVENTS.TYPING_STOP, callback);
   }
 
-  // Presence events
-  setPresence(status: 'online' | 'away' | 'offline', roomId?: string): void {
+  // Presence events with new status system
+  setPresence(status: UserPresenceStatus, roomId?: string): void {
     this.emit(SOCKET_EVENTS.PRESENCE_UPDATE, {
       status,
       roomId,
@@ -347,8 +425,23 @@ export class SocketClient {
     });
   }
 
+  setUserStatus(status: UserPresenceStatus): void {
+    this.emit('update_status', {
+      status,
+      timestamp: Date.now(),
+    });
+  }
+
   onPresenceUpdate(callback: (presence: UserPresence) => void): void {
     this.on(SOCKET_EVENTS.PRESENCE_UPDATE, callback);
+  }
+
+  onUserStatusChanged(callback: (data: { userId: string; status: UserPresenceStatus }) => void): void {
+    this.on('user_status_changed', callback);
+  }
+
+  onRoomPresenceUpdate(callback: (data: { roomId: string; users: UserPresence[] }) => void): void {
+    this.on('room_presence_update', callback);
   }
 
   // Voice/WebRTC events

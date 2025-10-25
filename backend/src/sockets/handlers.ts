@@ -21,7 +21,7 @@ export const setupSocketHandlers = (io: Server): void => {
   // Initialize WebRTC service
   webrtcService.initialize(io);
 
-  io.use((socket: AuthenticatedSocket, next) => {
+  io.use(async (socket: AuthenticatedSocket, next) => {
     const token = socket.handshake.auth.token;
 
     if (!token) {
@@ -29,7 +29,7 @@ export const setupSocketHandlers = (io: Server): void => {
     }
 
     try {
-      const decoded = verifyAccessToken(token) as AuthPayload;
+      const decoded = await verifyAccessToken(token) as AuthPayload;
       socket.userId = decoded.userId;
       next();
     } catch (error) {

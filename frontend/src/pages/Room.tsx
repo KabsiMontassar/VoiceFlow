@@ -89,7 +89,37 @@ export default function Room(): FunctionComponent {
     // Listen for new messages
     socketClient.onMessageReceive((message) => {
       if (message.roomId === roomId) {
-        addMessage(roomId, message);
+        // Ensure message has an author (MessageWithAuthor) before adding to store
+        const findMember = (membersData as any[]).find((m: any) => m.id === message.userId);
+
+        const author = findMember
+          ? {
+              id: findMember.id,
+              username: findMember.username || 'User',
+              email: findMember.email || '',
+              avatarUrl: findMember.avatarUrl || null,
+              status: findMember.status || 'inactive',
+              createdAt: findMember.createdAt ? new Date(findMember.createdAt) : new Date(),
+              updatedAt: findMember.updatedAt ? new Date(findMember.updatedAt) : new Date(),
+            }
+          : {
+              id: message.userId,
+              username: 'User',
+              email: '',
+              avatarUrl: null,
+              status: 'inactive',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+
+        const messageWithAuthor = {
+          ...message,
+          createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
+          updatedAt: message.updatedAt ? new Date(message.updatedAt) : new Date(),
+          author,
+        };
+
+        addMessage(roomId, messageWithAuthor as any);
       }
     });
 
@@ -148,7 +178,7 @@ export default function Room(): FunctionComponent {
             </h1>
             <div className="flex items-center gap-4 mt-1">
               <p className="text-sm text-primary-600 font-mono">
-                {(membersData as any)?.length || 0} members online
+                {(membersData as any)?.length || 0} members active
               </p>
               {(roomData as any)?.code && (
                 <div className="flex items-center gap-2">
@@ -273,7 +303,7 @@ export default function Room(): FunctionComponent {
                 <Avatar
                   initials={member.username?.substring(0, 2).toUpperCase()}
                   size="sm"
-                  status={member.status || 'offline'}
+                  status={member.status || 'inactive'}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-mono font-bold text-primary-950 truncate">

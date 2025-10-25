@@ -33,7 +33,7 @@ export function AppLayout() {
             console.log('Connecting to socket with token...');
             await socketClient.connect({
               url: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000',
-              token: accessToken
+              accessToken: accessToken
             });
             console.log('Socket connected successfully');
           }

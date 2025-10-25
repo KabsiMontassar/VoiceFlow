@@ -1,18 +1,20 @@
 /**
- * Presence Service - User Activity and Status Management
- * Handles online/offline/away status, room presence, and activity tracking
+ * Enhanced Presence Service - User Activity and Status Management
+ * Handles active/inactive/away status based on authentication state
  */
 
 import { Server as SocketServer, Socket } from 'socket.io';
 import { redisService } from './redis.service';
+import { UserPresenceStatus } from '../../../shared/src/types';
 import logger from '../utils/logger';
 
 export interface UserPresence {
   userId: string;
-  status: 'online' | 'away' | 'offline';
+  status: UserPresenceStatus;
   lastSeen: Date;
   currentRoom?: string;
   socketId?: string;
+  sessionId?: string;
   userAgent?: string;
   ipAddress?: string;
 }
@@ -32,7 +34,7 @@ export interface TypingStatus {
 }
 
 /**
- * Advanced Presence Management System
+ * Enhanced Presence Management System with Authentication-based Status
  */
 export class PresenceService {
   private io: SocketServer | null = null;
@@ -53,7 +55,7 @@ export class PresenceService {
   private readonly PRESENCE_CLEANUP_INTERVAL = 30000; // 30 seconds
   private readonly HEARTBEAT_INTERVAL = 60000; // 1 minute
   private readonly AWAY_TIMEOUT = 300000; // 5 minutes
-  private readonly OFFLINE_TIMEOUT = 600000; // 10 minutes
+  private readonly INACTIVE_TIMEOUT = 600000; // 10 minutes
 
   constructor() {
     this.startCleanupIntervals();
@@ -64,13 +66,13 @@ export class PresenceService {
    */
   public initialize(io: SocketServer): void {
     this.io = io;
-    logger.info('Presence service initialized');
+    logger.info('Enhanced presence service initialized');
   }
 
   /**
-   * Handle user connection
+   * Handle user connection with authentication-based status
    */
-  public async handleUserConnect(socket: Socket, userId: string): Promise<void> {
+  public async handleUserConnect(socket: Socket, userId: string, sessionId?: string): Promise<void> {
     try {
       const socketId = socket.id;
       
@@ -81,12 +83,13 @@ export class PresenceService {
       this.userSockets.get(userId)!.add(socketId);
       this.socketUsers.set(socketId, userId);
 
-      // Create or update presence
+      // Create or update presence - user is active when connected with valid auth
       const presence: UserPresence = {
         userId,
-        status: 'online',
+        status: UserPresenceStatus.ACTIVE,
         lastSeen: new Date(),
         socketId,
+        sessionId,
         userAgent: socket.handshake.headers['user-agent'],
         ipAddress: socket.handshake.address
       };
@@ -94,15 +97,24 @@ export class PresenceService {
       this.presenceCache.set(userId, presence);
       
       // Store in Redis for persistence across instances
-      await redisService.setUserPresence(userId, 'online');
+      await redisService.setUserPresence(userId, UserPresenceStatus.ACTIVE);
 
-      // Notify other users about online status
-      this.broadcastPresenceUpdate(userId, 'online');
+      // Check if user has valid authentication
+      const { jwtService } = await import('../utils/jwt');
+      const isAuthenticated = await jwtService.isUserActive(userId);
+
+      if (isAuthenticated) {
+        // Notify other users about active status
+        this.broadcastPresenceUpdate(userId, UserPresenceStatus.ACTIVE);
+      } else {
+        // Mark as inactive if no valid session
+        await this.setUserStatus(userId, UserPresenceStatus.INACTIVE);
+      }
 
       // Send offline messages if any
       await this.deliverOfflineMessages(userId);
 
-      logger.debug(`User ${userId} connected with socket ${socketId}`);
+      logger.debug(`User ${userId} connected with socket ${socketId} - status: ${presence.status}`);
     } catch (error) {
       logger.error('Handle user connect error:', error);
     }
@@ -125,8 +137,15 @@ export class PresenceService {
         userSocketSet.delete(socketId);
         if (userSocketSet.size === 0) {
           this.userSockets.delete(userId);
-          // User is completely offline
-          await this.setUserStatus(userId, 'offline');
+          
+          // Check if user still has valid authentication
+          const { jwtService } = await import('../utils/jwt');
+          const isAuthenticated = await jwtService.isUserActive(userId);
+          
+          if (!isAuthenticated) {
+            // User is completely inactive
+            await this.setUserStatus(userId, UserPresenceStatus.INACTIVE);
+          }
         }
       }
 
@@ -168,13 +187,30 @@ export class PresenceService {
       if (presence) {
         presence.currentRoom = roomId;
         presence.lastSeen = new Date();
-        this.presenceCache.set(userId, presence);
+        // Ensure user is marked as active when joining a room (if authenticated)
+        const { jwtService } = await import('../utils/jwt');
+        const isAuthenticated = await jwtService.isUserActive(userId);
         
+        if (isAuthenticated) {
+          presence.status = UserPresenceStatus.ACTIVE;
+        }
+        
+        this.presenceCache.set(userId, presence);
         await redisService.setUserPresence(userId, presence.status, roomId);
+      } else {
+        // Create new presence if it doesn't exist
+        const { jwtService } = await import('../utils/jwt');
+        const isAuthenticated = await jwtService.isUserActive(userId);
+        
+        const newPresence: UserPresence = {
+          userId,
+          status: isAuthenticated ? UserPresenceStatus.ACTIVE : UserPresenceStatus.INACTIVE,
+          lastSeen: new Date(),
+          currentRoom: roomId
+        };
+        this.presenceCache.set(userId, newPresence);
+        await redisService.setUserPresence(userId, newPresence.status, roomId);
       }
-
-      // Notify room about user join
-      await this.broadcastRoomPresenceUpdate(roomId);
 
       logger.debug(`User ${userId} joined room ${roomId}`);
     } catch (error) {
@@ -227,13 +263,13 @@ export class PresenceService {
   }
 
   /**
-   * Set user status (online, away, offline)
+   * Set user status (active, inactive, away)
    */
-  public async setUserStatus(userId: string, status: 'online' | 'away' | 'offline'): Promise<void> {
+  public async setUserStatus(userId: string, status: UserPresenceStatus): Promise<void> {
     try {
       const presence = this.presenceCache.get(userId) || {
         userId,
-        status: 'offline',
+        status: UserPresenceStatus.INACTIVE,
         lastSeen: new Date()
       };
 
@@ -365,7 +401,7 @@ export class PresenceService {
         const presence = this.presenceCache.get(userId);
         if (presence) {
           users.push(presence);
-          if (presence.status === 'online') {
+          if (presence.status === UserPresenceStatus.ACTIVE) {
             activeUsers++;
           }
         }
@@ -402,11 +438,13 @@ export class PresenceService {
         if (redisPresence) {
           presence = {
             userId,
-            status: redisPresence.status as 'online' | 'away' | 'offline',
+            status: redisPresence.status as UserPresenceStatus,
             lastSeen: new Date(redisPresence.lastSeen),
             currentRoom: redisPresence.roomId
           };
-          this.presenceCache.set(userId, presence);
+          if (presence) {
+            this.presenceCache.set(userId, presence);
+          }
         }
       }
 
@@ -561,11 +599,11 @@ export class PresenceService {
     for (const [userId, presence] of this.presenceCache.entries()) {
       const timeDiff = now.getTime() - presence.lastSeen.getTime();
       
-      // Check if user should be marked as away or offline
-      if (presence.status === 'online' && timeDiff > this.AWAY_TIMEOUT) {
-        this.setUserStatus(userId, 'away');
-      } else if (presence.status !== 'offline' && timeDiff > this.OFFLINE_TIMEOUT) {
-        this.setUserStatus(userId, 'offline');
+      // Check if user should be marked as away or inactive
+      if (presence.status === UserPresenceStatus.ACTIVE && timeDiff > this.AWAY_TIMEOUT) {
+        this.setUserStatus(userId, UserPresenceStatus.AWAY);
+      } else if (presence.status !== UserPresenceStatus.INACTIVE && timeDiff > this.INACTIVE_TIMEOUT) {
+        this.setUserStatus(userId, UserPresenceStatus.INACTIVE);
       }
     }
   }
@@ -599,7 +637,7 @@ export class PresenceService {
     for (const [userId, socketSet] of this.userSockets.entries()) {
       if (socketSet.size > 0) {
         const presence = this.presenceCache.get(userId);
-        if (presence && presence.status === 'online') {
+        if (presence && presence.status === UserPresenceStatus.ACTIVE) {
           presence.lastSeen = new Date();
           this.presenceCache.set(userId, presence);
         }
@@ -612,26 +650,26 @@ export class PresenceService {
    */
   public getPresenceStats(): {
     totalUsers: number;
-    onlineUsers: number;
+    activeUsers: number;
     awayUsers: number;
-    offlineUsers: number;
+    inactiveUsers: number;
     totalRooms: number;
     activeRooms: number;
   } {
-    let onlineUsers = 0;
+    let activeUsers = 0;
     let awayUsers = 0;
-    let offlineUsers = 0;
+    let inactiveUsers = 0;
 
     for (const presence of this.presenceCache.values()) {
       switch (presence.status) {
-        case 'online':
-          onlineUsers++;
+        case UserPresenceStatus.ACTIVE:
+          activeUsers++;
           break;
-        case 'away':
+        case UserPresenceStatus.AWAY:
           awayUsers++;
           break;
-        case 'offline':
-          offlineUsers++;
+        case UserPresenceStatus.INACTIVE:
+          inactiveUsers++;
           break;
       }
     }
@@ -641,9 +679,9 @@ export class PresenceService {
 
     return {
       totalUsers: this.presenceCache.size,
-      onlineUsers,
+      activeUsers,
       awayUsers,
-      offlineUsers,
+      inactiveUsers,
       totalRooms: this.roomUsers.size,
       activeRooms
     };

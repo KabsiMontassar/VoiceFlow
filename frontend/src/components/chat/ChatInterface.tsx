@@ -27,13 +27,13 @@ export function ChatInterface() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { rooms, removeRoom } = useRoomStore();
-  const { currentRoomMessages, addMessage, setRoomMessages, setLoading } = useMessageStore();
+  const { currentRoomMessages, addMessage, setRoomMessages } = useMessageStore();
   
   const [messageInput, setMessageInput] = useState('');
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [showMembers, setShowMembers] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [activeUsers, setActiveUsers] = useState<Set<string>>(new Set());
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   
@@ -127,9 +127,9 @@ export function ChatInterface() {
               }]);
             }
             
-            // Initialize online users - only current user is online initially
-            // Other users will be marked online when they actually join the room via socket events
-            setOnlineUsers(new Set([user.id]));
+            // Initialize active users - current user is active
+            // Other users will be marked active when they actually join the room via socket events
+            setActiveUsers(new Set([user.id]));
           }
         } catch (error) {
           console.warn('Failed to load room members:', error);
@@ -154,11 +154,42 @@ export function ChatInterface() {
     // Join room
     socketClient.joinRoom(roomId);
 
+    // Helper to ensure MessageWithAuthor shape
+    const toMessageWithAuthor = (message: any) => {
+      const findMember = members.find((m: any) => m.id === message.userId);
+      const author = findMember
+        ? {
+            id: findMember.id,
+            username: findMember.username || 'User',
+            email: findMember.email || '',
+            avatarUrl: findMember.avatarUrl || null,
+            status: findMember.status || 'inactive',
+            createdAt: findMember.createdAt ? new Date(findMember.createdAt) : new Date(),
+            updatedAt: findMember.updatedAt ? new Date(findMember.updatedAt) : new Date(),
+          }
+        : {
+            id: message.userId,
+            username: 'User',
+            email: '',
+            avatarUrl: null,
+            status: 'inactive',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+      return {
+        ...message,
+        createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
+        updatedAt: message.updatedAt ? new Date(message.updatedAt) : new Date(),
+        author,
+      };
+    };
+
     // Message handlers
     const handleNewMessage = (message: any) => {
       console.log('Received new message:', message);
       if (message.roomId === roomId) {
-        addMessage(roomId, message);
+        addMessage(roomId, toMessageWithAuthor(message) as any);
       }
     };
 
@@ -166,7 +197,7 @@ export function ChatInterface() {
       console.log('Message sent confirmation:', response);
       if (response.success && response.data && response.data.roomId === roomId) {
         // Update the temporary message with the real one from server
-        addMessage(roomId, response.data);
+        addMessage(roomId, toMessageWithAuthor(response.data) as any);
       }
     };
 
@@ -204,8 +235,8 @@ export function ChatInterface() {
           }
           return prev;
         });
-        // Add user to online users
-        setOnlineUsers(prev => new Set([...prev, data.user.id]));
+        // Add user to active users
+        setActiveUsers(prev => new Set([...prev, data.user.id]));
       }
     };
 
@@ -213,8 +244,8 @@ export function ChatInterface() {
       console.log('User left room:', data);
       setMembers(prev => prev.filter(m => m.id !== data.userId));
       setTypingUsers(prev => prev.filter(u => u.userId !== data.userId));
-      // Remove user from online users
-      setOnlineUsers(prev => {
+      // Remove user from active users
+      setActiveUsers(prev => {
         const newSet = new Set(prev);
         newSet.delete(data.userId);
         return newSet;
@@ -224,9 +255,9 @@ export function ChatInterface() {
     const handlePresenceUpdate = (data: any) => {
       console.log('Presence update:', data);
       if (data.userId && data.status) {
-        setOnlineUsers(prev => {
+        setActiveUsers(prev => {
           const newSet = new Set(prev);
-          if (data.status === 'online') {
+          if (data.status === 'active' || data.status === 'away') {
             newSet.add(data.userId);
           } else {
             newSet.delete(data.userId);
@@ -239,17 +270,58 @@ export function ChatInterface() {
     const handleRoomPresenceUpdate = (data: any) => {
       console.log('Room presence update:', data);
       if (data.users && Array.isArray(data.users)) {
-        // Update online users based on room presence data
-        const onlineUserIds = data.users
-          .filter((userPresence: any) => userPresence.status === 'online')
+        // Update active users based on room presence data
+        const activeUserIds = data.users
+          .filter((userPresence: any) => 
+            userPresence.status === 'active' || 
+            userPresence.status === 'away'
+          )
           .map((userPresence: any) => userPresence.userId);
         
-        // Always ensure current user stays online if they're in the room
-        if (user && !onlineUserIds.includes(user.id)) {
-          onlineUserIds.push(user.id);
+        // Always ensure current user stays active if they're in the room
+        if (user && !activeUserIds.includes(user.id)) {
+          activeUserIds.push(user.id);
         }
         
-        setOnlineUsers(new Set(onlineUserIds));
+        setActiveUsers(new Set(activeUserIds));
+      }
+    };
+
+    // Handle initial room presence when joining
+    const handleRoomPresence = (data: any) => {
+      console.log('Initial room presence:', data);
+      if (data.users && Array.isArray(data.users)) {
+        // Update active users based on initial room presence data
+        const activeUserIds = data.users
+          .filter((userPresence: any) => 
+            userPresence.status === 'active' || 
+            userPresence.status === 'away'
+          )
+          .map((userPresence: any) => userPresence.userId);
+        
+        // Always ensure current user stays active if they're in the room
+        if (user && !activeUserIds.includes(user.id)) {
+          activeUserIds.push(user.id);
+        }
+        
+        setActiveUsers(new Set(activeUserIds));
+        
+        // Also update members list if we have user information
+        const usersWithInfo = data.users
+          .filter((userPresence: any) => userPresence.userId)
+          .map((userPresence: any) => ({
+            id: userPresence.userId,
+            username: userPresence.username || userPresence.userId,
+            email: userPresence.email || '',
+            status: userPresence.status
+          }));
+          
+        // Merge with existing members, prioritizing existing data
+        setMembers(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const newMembers = usersWithInfo.filter((u: any) => !existingIds.has(u.id));
+          return [...prev, ...newMembers];
+        });
       }
     };
 
@@ -261,6 +333,7 @@ export function ChatInterface() {
     socketClient.on('user_left_room', handleUserLeftRoom);
     socketClient.on('presence_update', handlePresenceUpdate);
     socketClient.on('room_presence_update', handleRoomPresenceUpdate);
+    socketClient.on('room_presence', handleRoomPresence); // Handle initial presence
 
     return () => {
       // Clean up event listeners
@@ -271,6 +344,7 @@ export function ChatInterface() {
       socketClient.off('user_left_room', handleUserLeftRoom);
       socketClient.off('presence_update', handlePresenceUpdate);
       socketClient.off('room_presence_update', handleRoomPresenceUpdate);
+      socketClient.off('room_presence', handleRoomPresence); // Clean up initial presence handler
       
       // Leave room and stop typing
       socketClient.typingStop(roomId);
@@ -638,7 +712,7 @@ export function ChatInterface() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {members.map((member) => {
-                const isOnline = onlineUsers.has(member.id);
+                const isActive = activeUsers.has(member.id);
                 return (
                   <div key={member.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-neutral-50">
                     <div className="relative">
@@ -648,7 +722,7 @@ export function ChatInterface() {
                         </span>
                       </div>
                       <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
-                        isOnline ? 'bg-green-500' : 'bg-red-500'
+                        isActive ? 'bg-green-500' : 'bg-red-500'
                       }`}></div>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -657,10 +731,10 @@ export function ChatInterface() {
                       </div>
                       <div className="flex items-center space-x-1">
                         <div className={`w-2 h-2 rounded-full ${
-                          isOnline ? 'bg-green-500' : 'bg-red-500'
+                          isActive ? 'bg-green-500' : 'bg-red-500'
                         }`}></div>
                         <span className="text-xs text-neutral-500">
-                          {isOnline ? 'Online' : 'Offline'}
+                          {isActive ? 'Active' : 'Inactive'}
                         </span>
                       </div>
                     </div>

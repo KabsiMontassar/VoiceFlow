@@ -1,26 +1,24 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import type { Router as ExpressRouter } from 'express';
-import { AuthController } from '../controllers/auth.controller';
-import { authMiddleware } from '../middleware/auth';
+import { authController } from '../controllers/auth.controller';
+import { authMiddleware, userRateLimitMiddleware, validateSessionMiddleware } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
-const authController = new AuthController();
-
-interface AuthRequest extends Request {
-  userId?: string;
-}
 
 /**
- * Public routes
+ * Public routes with rate limiting
  */
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/refresh', authController.refreshToken);
+router.post('/register', userRateLimitMiddleware(5, 15), authController.register);
+router.post('/login', userRateLimitMiddleware(10, 15), authController.login);
+router.post('/refresh', userRateLimitMiddleware(30, 15), authController.refreshToken);
 
 /**
- * Protected routes
+ * Protected routes with authentication and session validation
  */
-router.get('/me', authMiddleware, authController.getCurrentUser);
+router.get('/me', authMiddleware, validateSessionMiddleware, authController.getCurrentUser);
 router.post('/logout', authMiddleware, authController.logout);
+router.post('/logout-all', authMiddleware, authController.logoutAll);
+router.get('/sessions', authMiddleware, validateSessionMiddleware, authController.getSessions);
+router.get('/status', authMiddleware, authController.getStatus);
 
 export default router;

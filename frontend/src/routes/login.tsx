@@ -11,7 +11,6 @@ import {
   Github
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
-import { apiClient } from '../services/api';
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -24,7 +23,7 @@ function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { setUser } = useAuthStore();
+  const { login } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,36 +37,8 @@ function LoginPage() {
     setError('');
 
     try {
-      const response = await apiClient.login({ email, password });
-      
-      const authData = (response as any).data || response;
-      console.log('Login: Auth data received:', authData);
-      
-      // Store tokens in localStorage
-      if (authData.accessToken) {
-        localStorage.setItem("authToken", authData.accessToken);
-        localStorage.setItem("accessToken", authData.accessToken);
-        apiClient.setAccessToken(authData.accessToken);
-      }
-
-      if (authData.refreshToken) {
-        localStorage.setItem("refreshToken", authData.refreshToken);
-        apiClient.setRefreshToken(authData.refreshToken);
-      }
-      
-      // Update auth store with both user and tokens
-      if (authData.user) {
-        setUser(authData.user);
-      }
-      
-      // Set tokens in the store to ensure isAuthenticated is true
-      if (authData.accessToken) {
-        useAuthStore.getState().setTokens(
-          authData.accessToken, 
-          authData.refreshToken || ""
-        );
-      }
-
+      // The auth store will handle token storage through its login method
+      await login(email, password);
       navigate({ to: '/dashboard' });
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Login failed. Please try again.');

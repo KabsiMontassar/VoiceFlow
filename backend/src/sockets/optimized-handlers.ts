@@ -12,6 +12,7 @@ import logger from '../utils/logger';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
+  sessionId?: string;
   user?: any;
 }
 
@@ -66,7 +67,7 @@ export class OptimizedSocketHandlers {
   }
 
   /**
-   * Authentication middleware with JWT validation
+   * Authentication middleware with JWT validation and session tracking
    */
   private async authenticationMiddleware(socket: AuthenticatedSocket, next: Function): Promise<void> {
     try {
@@ -84,36 +85,48 @@ export class OptimizedSocketHandlers {
         return next(new Error('Authentication token required'));
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-      
-      logger.debug('JWT decoded successfully:', {
-        id: decoded.id,
-        userId: decoded.userId,
-        username: decoded.username,
-        email: decoded.email,
-        allFields: Object.keys(decoded)
-      });
-      
-      // Try multiple possible user ID fields
-      socket.userId = decoded.userId || decoded.id || decoded.user?.id;
-      socket.user = {
-        id: decoded.userId || decoded.id,
-        userId: decoded.userId,
-        email: decoded.email,
-        username: decoded.username,
-        ...decoded
-      };
-      
-      if (!socket.userId) {
-        logger.error('User ID not found in JWT token:', decoded);
-        return next(new Error('Invalid token: missing user ID'));
+      try {
+        const { jwtService } = await import('../utils/jwt');
+        const decoded = await jwtService.verifyAccessToken(token);
+        
+        logger.debug('JWT decoded successfully:', {
+          userId: decoded.userId,
+          username: decoded.username,
+          email: decoded.email,
+          sessionId: decoded.sessionId
+        });
+        
+        socket.userId = decoded.userId;
+        socket.sessionId = decoded.sessionId;
+        socket.user = {
+          id: decoded.userId,
+          userId: decoded.userId,
+          email: decoded.email,
+          username: decoded.username,
+          sessionId: decoded.sessionId
+        };
+        
+        if (!socket.userId) {
+          logger.error('User ID not found in JWT token:', decoded);
+          return next(new Error('Invalid token: missing user ID'));
+        }
+        
+        logger.debug(`Socket authenticated successfully for user ${socket.userId} with session ${socket.sessionId}`);
+        next();
+      } catch (error: any) {
+        logger.error('JWT verification failed:', error.message);
+        
+        if (error.message.includes('expired')) {
+          return next(new Error('Access token expired - please refresh'));
+        } else if (error.message.includes('Session not found')) {
+          return next(new Error('Session expired - please login again'));
+        } else {
+          return next(new Error('Invalid authentication token'));
+        }
       }
-      
-      logger.debug(`Socket authenticated successfully for user ${socket.userId}`);
-      next();
     } catch (error) {
       logger.error('Socket authentication failed:', error);
-      next(new Error('Invalid authentication token'));
+      next(new Error('Authentication error'));
     }
   }
 
@@ -178,7 +191,7 @@ export class OptimizedSocketHandlers {
       this.connectionPool.get(userId)!.add(socketId);
 
       // Initialize presence
-      await presenceService.handleUserConnect(socket, userId);
+      await presenceService.handleUserConnect(socket, userId, socket.sessionId);
 
       // Setup socket event handlers
       this.setupSocketEvents(socket);
@@ -396,12 +409,21 @@ export class OptimizedSocketHandlers {
       const recentMessages = await redisService.getCache(`messages:${roomId}`) || [];
       socket.emit('room_messages', recentMessages);
 
-      // Notify room about new member
+      // CRITICAL: Send current room presence to the newly joined user
+      // This ensures the new user sees who's already online in the room
+      const currentRoomPresence = await presenceService.getRoomPresence(roomId);
+      socket.emit('room_presence', currentRoomPresence);
+
+      // Notify room about new member (AFTER sending current presence)
       socket.to(roomId).emit('user_joined_room', {
         userId,
         user: socket.user,
         timestamp: new Date()
       });
+
+      // Also broadcast updated room presence to all users in room
+      // This ensures all users get the updated presence including the new user
+      await this.broadcastRoomPresenceToAll(roomId);
 
       logger.debug(`User ${userId} joined room ${roomId}`);
 
@@ -551,7 +573,7 @@ export class OptimizedSocketHandlers {
 
     try {
       const { status } = data;
-      if (!['online', 'away', 'offline'].includes(status)) {
+      if (!['active', 'inactive', 'away'].includes(status)) {
         socket.emit('error', { message: 'Invalid status' });
         return;
       }
@@ -681,6 +703,19 @@ export class OptimizedSocketHandlers {
         timestamp: new Date()
       });
     }, 60000); // Every minute
+  }
+
+  /**
+   * Broadcast room presence to all users in the room
+   */
+  private async broadcastRoomPresenceToAll(roomId: string): Promise<void> {
+    try {
+      const roomPresence = await presenceService.getRoomPresence(roomId);
+      this.io.to(roomId).emit('room_presence_update', roomPresence);
+      logger.debug(`Broadcasted room presence update to room ${roomId}`);
+    } catch (error) {
+      logger.error('Broadcast room presence to all error:', error);
+    }
   }
 
   /**

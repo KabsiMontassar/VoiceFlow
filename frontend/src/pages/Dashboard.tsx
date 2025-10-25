@@ -162,7 +162,7 @@ const Dashboard = (): FunctionComponent => {
             </nav>
 
             <div className="flex items-center gap-4">
-              <Avatar initials={user?.username?.substring(0, 2).toUpperCase() || 'U'} status="online" />
+              <Avatar initials={user?.username?.substring(0, 2).toUpperCase() || 'U'} status="active" />
               <div className="hidden sm:block">
                 <p className="text-sm font-mono font-bold text-neutral-950">{user?.username}</p>
                 <p className="text-xs font-mono text-neutral-600">{user?.email}</p>

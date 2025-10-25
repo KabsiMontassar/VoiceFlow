@@ -125,7 +125,7 @@ const VoiceParticipant: React.FC<VoiceParticipantProps> = ({ participant }) => {
         <Avatar
           initials={username.substring(0, 2).toUpperCase()}
           size="sm"
-          status={isConnected ? 'online' : 'offline'}
+          status={isConnected ? 'active' : 'inactive'}
         />
         {isMuted && (
           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center">
@@ -329,7 +329,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ roomId, isActive, onToggle }) => 
       <div className="p-4 space-y-4">
         {/* Local Audio Level */}
         <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <Avatar initials="You" size="sm" status="online" />
+          <Avatar initials="You" size="sm" status="active" />
           <div className="flex-1">
             <p className="text-sm font-mono font-bold text-primary-950">You</p>
             <div className="flex items-center gap-2">

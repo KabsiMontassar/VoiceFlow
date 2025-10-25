@@ -5,7 +5,7 @@
 
 import { DataTypes, Model, Sequelize } from 'sequelize';
 // @ts-ignore - Monorepo imports flagged by rootDir constraint but valid
-import { User, Room, Message, RoomUser, MessageType, RoomSettings } from '../../../shared/src';
+import { User, Room, Message, RoomUser, MessageType, RoomSettings, UserPresenceStatus } from '../../../shared/src';
 
 export class UserModel extends Model implements User {
   declare id: string;
@@ -13,6 +13,7 @@ export class UserModel extends Model implements User {
   declare email: string;
   declare passwordHash: string; // Not in User interface, but needed for DB
   declare avatarUrl: string | null;
+  declare status: UserPresenceStatus; // User status: active/inactive/away
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -93,6 +94,11 @@ export const initializeModels = (sequelize: Sequelize): void => {
       avatarUrl: {
         type: DataTypes.STRING,
         allowNull: true,
+      },
+      status: {
+        type: DataTypes.ENUM('active', 'inactive', 'away', 'in_call'),
+        defaultValue: 'inactive',
+        allowNull: false,
       },
       createdAt: {
         type: DataTypes.DATE,
