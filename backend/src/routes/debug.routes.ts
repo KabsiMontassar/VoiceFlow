@@ -18,11 +18,11 @@ router.post('/debug/token', (req: Request, res: Response) => {
 
     // Decode without verification first
     const decoded = jwt.decode(token);
-    logger.info('Token decoded (no verification):', decoded);
+    logger.info({ decoded }, 'Token decoded (no verification):');
 
     // Verify token
     const verified = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    logger.info('Token verified:', verified);
+    logger.info({ verified }, 'Token verified:');
 
     res.json({
       success: true,
