@@ -5,7 +5,6 @@ import {
   Smile,
   Users,
   Phone,
-  Video,
   Hash,
   Clock,
   Mic,
@@ -30,7 +29,7 @@ export function ChatInterface() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { rooms, removeRoom } = useRoomStore();
-  const { currentRoomMessages, addMessage, setRoomMessages } = useMessageStore();
+  const { currentRoomMessages, addMessage, setRoomMessages, removeMessage } = useMessageStore();
 
   const [messageInput, setMessageInput] = useState('');
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
@@ -198,14 +197,41 @@ export function ChatInterface() {
     // Message handlers
     const handleNewMessage = (message: any) => {
       if (message.roomId === roomId) {
-        addMessage(roomId, toMessageWithAuthor(message) as any);
+        const messageWithAuthor = toMessageWithAuthor(message);
+        
+        // If this is our own message, remove any temporary version first
+        if (user && message.userId === user.id) {
+          // Remove temp messages for this user (they start with "temp-")
+          const currentMessages = currentRoomMessages[roomId] || [];
+          const tempMessages = currentMessages.filter(m => m.id.startsWith('temp-') && m.userId === user.id);
+          
+          // Remove the most recent temp message if it has the same content
+          if (tempMessages.length > 0) {
+            const lastTemp = tempMessages[tempMessages.length - 1];
+            if (lastTemp.content === message.content) {
+              removeMessage(lastTemp.id, roomId);
+            }
+          }
+        }
+        
+        addMessage(roomId, messageWithAuthor as any);
       }
     };
 
     const handleMessageSent = (response: any) => {
-      if (response.success && response.data && response.data.roomId === roomId) {
-        // Update the temporary message with the real one from server
-        addMessage(roomId, toMessageWithAuthor(response.data) as any);
+      // This event confirms message delivery and provides tempId mapping
+      const messageData = response.message || response.data || response;
+      const tempId = response.tempId;
+      
+      if (messageData && messageData.roomId === roomId) {
+        // Remove the temporary message if tempId is provided
+        if (tempId && tempId.startsWith('temp-')) {
+          removeMessage(tempId, roomId);
+        }
+        
+        // Add the real message (addMessage handles duplicates)
+        const messageWithAuthor = toMessageWithAuthor(messageData);
+        addMessage(roomId, messageWithAuthor as any);
       }
     };
 
@@ -260,6 +286,7 @@ export function ChatInterface() {
 
     const handlePresenceUpdate = (data: any) => {
       if (data.userId && data.status) {
+        // Immediately update active users for real-time feedback
         setActiveUsers(prev => {
           const newSet = new Set(prev);
           if (data.status === 'active' || data.status === 'away') {
@@ -269,6 +296,13 @@ export function ChatInterface() {
           }
           return newSet;
         });
+
+        // Also update member status if they're in the members list
+        setMembers(prev => prev.map(member =>
+          member.id === data.userId
+            ? { ...member, status: data.status }
+            : member
+        ));
       }
     };
 
@@ -282,15 +316,8 @@ export function ChatInterface() {
           )
           .map((userPresence: any) => userPresence.userId as string);
 
-        // Update active users set efficiently
-        setActiveUsers(prev => {
-          const newSet = new Set<string>(activeUserIds);
-          // Only update if there's a change to avoid unnecessary re-renders
-          if (prev.size !== newSet.size || !Array.from(prev).every(id => newSet.has(id))) {
-            return newSet;
-          }
-          return prev;
-        });
+        // Always update active users - removed comparison check that was causing stale data
+        setActiveUsers(new Set<string>(activeUserIds));
 
         // Also merge any new users into the members list
         const usersWithInfo = data.users.map((userPresence: any) => ({
@@ -359,6 +386,7 @@ export function ChatInterface() {
     socketClient.on('user_joined_room', handleUserJoinedRoom);
     socketClient.on('user_left_room', handleUserLeftRoom);
     socketClient.on('presence_update', handlePresenceUpdate);
+    socketClient.on('user_status_changed', handlePresenceUpdate); // Also listen to direct status changes
     socketClient.on('room_presence_update', handleRoomPresenceUpdate);
     socketClient.on('room_presence', handleRoomPresence); // Handle initial presence
 
@@ -370,6 +398,7 @@ export function ChatInterface() {
       socketClient.off('user_joined_room', handleUserJoinedRoom);
       socketClient.off('user_left_room', handleUserLeftRoom);
       socketClient.off('presence_update', handlePresenceUpdate);
+      socketClient.off('user_status_changed', handlePresenceUpdate); // Clean up status change handler
       socketClient.off('room_presence_update', handleRoomPresenceUpdate);
       socketClient.off('room_presence', handleRoomPresence); // Clean up initial presence handler
 
@@ -377,17 +406,19 @@ export function ChatInterface() {
       socketClient.typingStop(roomId);
       socketClient.leaveRoom(roomId);
     };
-  }, [roomId, user, addMessage]);
+  }, [roomId, user, addMessage, removeMessage, currentRoomMessages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!messageInput.trim() || !user || !roomId) return;
 
-    const tempId = Date.now().toString();
+    const tempId = `temp-${Date.now()}`;
+    const messageContent = messageInput.trim();
+    
     const tempMessage = {
       id: tempId,
-      content: messageInput.trim(),
+      content: messageContent,
       roomId,
       userId: user.id,
       author: user,
@@ -397,11 +428,11 @@ export function ChatInterface() {
       fileId: null
     };
 
-    // Add optimistic message immediately
+    // Add optimistic message immediately (with temp- prefix to avoid conflicts)
     addMessage(roomId, tempMessage);
 
-    // Send via socket
-    socketClient.sendMessage(roomId, messageInput.trim(), MessageType.TEXT, tempId);
+    // Send via socket with tempId for mapping
+    socketClient.sendMessage(roomId, messageContent, MessageType.TEXT, tempId);
 
     // Clear input and stop typing
     setMessageInput('');
@@ -621,6 +652,13 @@ export function ChatInterface() {
                 const isOwnMessage = user && message.userId === user.id;
                 const showAvatar = !isOwnMessage && (index === 0 || messages[index - 1].userId !== message.userId);
                 const showDate = index === 0 || formatDate(messages[index - 1].createdAt) !== formatDate(message.createdAt);
+                
+                // Check if current user is mentioned in the message
+                const isMentioned = user && !isOwnMessage && (
+                  message.content.includes(`@${user.username}`) || 
+                  message.content.includes(`@${user.email}`) ||
+                  message.content.includes('@everyone')
+                );
 
                 return (
                   <div key={message.id}>
@@ -658,10 +696,13 @@ export function ChatInterface() {
                           )}
 
                           <div
-                            className={`px-5 py-3.5 rounded-2xl ${isOwnMessage
+                            className={`px-5 py-3.5 rounded-2xl ${
+                              isOwnMessage
                                 ? 'bg-black text-white shadow-lg shadow-black/10'
+                                : isMentioned
+                                ? 'bg-green-50 border-2 border-green-300 text-neutral-900 shadow-lg shadow-green-500/30 ring-2 ring-green-400/20 animate-pulse-slow'
                                 : 'bg-white border-2 border-neutral-200 text-neutral-900 shadow-sm'
-                              }`}
+                            }`}
                           >
                             <p className="text-[15px] leading-relaxed">{message.content}</p>
                             <div className={`text-[11px] mt-2 font-medium ${isOwnMessage ? 'text-neutral-400' : 'text-neutral-500'}`}>

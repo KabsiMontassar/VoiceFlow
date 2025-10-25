@@ -35,12 +35,32 @@ export const useMessageStore = create<MessageState>((set) => ({
     })),
 
   addMessage: (roomId: string, message: MessageWithAuthor) =>
-    set((state) => ({
-      currentRoomMessages: {
-        ...state.currentRoomMessages,
-        [roomId]: [...(state.currentRoomMessages[roomId] || []), message],
-      },
-    })),
+    set((state) => {
+      const currentMessages = state.currentRoomMessages[roomId] || [];
+      
+      // Check if message already exists (by id)
+      const existingIndex = currentMessages.findIndex(m => m.id === message.id);
+      
+      if (existingIndex >= 0) {
+        // Message exists - update it instead of duplicating
+        const updatedMessages = [...currentMessages];
+        updatedMessages[existingIndex] = message;
+        return {
+          currentRoomMessages: {
+            ...state.currentRoomMessages,
+            [roomId]: updatedMessages,
+          },
+        };
+      } else {
+        // New message - add it
+        return {
+          currentRoomMessages: {
+            ...state.currentRoomMessages,
+            [roomId]: [...currentMessages, message],
+          },
+        };
+      }
+    }),
 
   removeMessage: (messageId: string, roomId: string) =>
     set((state) => ({

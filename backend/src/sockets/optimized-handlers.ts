@@ -37,6 +37,7 @@ export class OptimizedSocketHandlers {
   private typingDebounceMap = new Map<string, TypingDebounceInfo>();
   private connectionPool = new Map<string, Set<string>>(); // userId -> socketIds
   private roomPresenceHeartbeatIntervals = new Map<string, NodeJS.Timeout>(); // roomId -> interval
+  private lastBroadcastedPresence = new Map<string, string>(); // roomId -> JSON stringified presence for change detection
   
   // Rate limiting configuration
   private readonly RATE_LIMITS = {
@@ -49,8 +50,8 @@ export class OptimizedSocketHandlers {
   private readonly TYPING_DEBOUNCE_DELAY = 1000; // 1 second
   private readonly TYPING_STOP_DELAY = 3000;     // 3 seconds
   
-  // Presence heartbeat configuration
-  private readonly PRESENCE_HEARTBEAT_INTERVAL = 5000; // 5 seconds
+  // Presence heartbeat configuration - balanced for real-time feel without rate limit issues
+  private readonly PRESENCE_HEARTBEAT_INTERVAL = 10000; // 10 seconds (was 2 seconds)
 
   constructor(io: SocketServer) {
     this.io = io;
@@ -328,19 +329,19 @@ export class OptimizedSocketHandlers {
 
       logger.debug('Message created successfully:', message);
 
-      // Broadcast to room (optimized)
-      socket.to(data.roomId).emit('new_message', {
+      // Prepare message with user info for broadcasting
+      const messageWithUser = {
         ...message,
         user: socket.user
-      });
+      };
 
-      // Confirm to sender
+      // Broadcast to ALL users in the room (including sender for consistency)
+      this.io.to(data.roomId).emit('new_message', messageWithUser);
+
+      // Also send confirmation to sender with tempId mapping
       socket.emit('message_sent', {
         tempId: data.tempId,
-        message: {
-          ...message,
-          user: socket.user
-        }
+        message: messageWithUser
       });
 
       // Stop typing indicator
@@ -418,9 +419,6 @@ export class OptimizedSocketHandlers {
       const currentRoomPresence = await presenceService.getRoomPresence(roomId);
       socket.emit('room_presence', currentRoomPresence);
 
-      // Small delay to ensure the client processes the initial presence before the update
-      await new Promise(resolve => setTimeout(resolve, 50));
-
       // Notify OTHER users in the room about the new member
       socket.to(roomId).emit('user_joined_room', {
         userId,
@@ -429,8 +427,8 @@ export class OptimizedSocketHandlers {
       });
 
       // Broadcast updated room presence to ALL users in the room (including the new user)
-      // This ensures everyone has the complete, up-to-date presence list
-      await this.broadcastRoomPresenceToAll(roomId);
+      // Force broadcast on join since this is a significant change
+      await this.broadcastRoomPresenceToAll(roomId, true);
 
       // Start presence heartbeat for this room if not already running
       this.startRoomPresenceHeartbeat(roomId);
@@ -768,23 +766,41 @@ export class OptimizedSocketHandlers {
     if (interval) {
       clearInterval(interval);
       this.roomPresenceHeartbeatIntervals.delete(roomId);
+      // Clean up cached presence signature
+      this.lastBroadcastedPresence.delete(roomId);
       logger.info(`Stopped presence heartbeat for room ${roomId}`);
     }
   }
 
   /**
    * Broadcast room presence to all users in the room
+   * Only broadcasts if presence has actually changed to avoid unnecessary updates
    */
-  private async broadcastRoomPresenceToAll(roomId: string): Promise<void> {
+  private async broadcastRoomPresenceToAll(roomId: string, force: boolean = false): Promise<void> {
     try {
       const roomPresence = await presenceService.getRoomPresence(roomId);
-      this.io.to(roomId).emit('room_presence_update', roomPresence);
-      logger.debug(`Broadcasted room presence update to room ${roomId}`, {
-        roomId,
-        userCount: roomPresence.users.length,
-        activeUsers: roomPresence.activeUsers,
-        users: roomPresence.users.map(u => ({ userId: u.userId, status: u.status }))
-      });
+      
+      // Create a signature of the current presence state
+      const presenceSignature = JSON.stringify(
+        roomPresence.users.map(u => ({ userId: u.userId, status: u.status })).sort((a, b) => a.userId.localeCompare(b.userId))
+      );
+      
+      // Only broadcast if presence changed or forced
+      const lastSignature = this.lastBroadcastedPresence.get(roomId);
+      if (force || lastSignature !== presenceSignature) {
+        this.io.to(roomId).emit('room_presence_update', roomPresence);
+        this.lastBroadcastedPresence.set(roomId, presenceSignature);
+        
+        logger.debug(`Broadcasted room presence update to room ${roomId}`, {
+          roomId,
+          userCount: roomPresence.users.length,
+          activeUsers: roomPresence.activeUsers,
+          users: roomPresence.users.map(u => ({ userId: u.userId, status: u.status })),
+          changed: lastSignature !== presenceSignature
+        });
+      } else {
+        logger.debug(`Skipped room presence broadcast (no change) for room ${roomId}`);
+      }
     } catch (error) {
       logger.error('Broadcast room presence to all error:', error);
     }
@@ -847,6 +863,9 @@ export class OptimizedSocketHandlers {
       logger.debug(`Cleared presence heartbeat for room ${roomId}`);
     }
     this.roomPresenceHeartbeatIntervals.clear();
+    
+    // Clear presence cache
+    this.lastBroadcastedPresence.clear();
     
     this.connectionPool.clear();
 

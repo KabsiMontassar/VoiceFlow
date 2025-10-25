@@ -514,8 +514,27 @@ export class PresenceService {
     const userRoomSet = this.userRooms.get(userId);
     if (userRoomSet) {
       for (const roomId of userRoomSet) {
+        // Broadcast individual presence update
         this.io.to(roomId).emit('presence_update', {
           userId,
+          status,
+          timestamp: new Date()
+        });
+        
+        // Also emit user_status_changed for more specific handling
+        this.io.to(roomId).emit('user_status_changed', {
+          userId,
+          status,
+          timestamp: new Date()
+        });
+      }
+    }
+
+    // Also broadcast to all user's sockets
+    const userSockets = this.userSockets.get(userId);
+    if (userSockets) {
+      for (const socketId of userSockets) {
+        this.io.to(socketId).emit('status_updated', {
           status,
           timestamp: new Date()
         });
