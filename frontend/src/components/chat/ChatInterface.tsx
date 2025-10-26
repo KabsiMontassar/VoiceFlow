@@ -999,7 +999,7 @@ export function ChatInterface() {
                         setIsInVoiceCall(true);
                         setVoiceParticipants([...voiceParticipants, user?.id || '']);
                       }}
-                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-success hover:bg-success/80 text-white rounded-xl transition-all font-primary font-semibold text-sm shadow-lg shadow-success/20 hover:shadow-xl hover:shadow-success/30"
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-[#ccff00] hover:bg-[#ccff00]/80 text-black rounded-xl transition-all font-primary font-semibold text-sm shadow-lg shadow-success/20 hover:shadow-xl hover:shadow-success/30"
                     >
                       <Phone className="w-4 h-4" />
                       <span>Join Voice Call</span>
