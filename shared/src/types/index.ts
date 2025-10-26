@@ -9,7 +9,18 @@ export interface User {
   age: number | null;
   country: string | null;
   gender: 'male' | 'female' | null;
+  bio: string | null;
   lastSeen: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  settings?: UserSettings;
+}
+
+export interface UserSettings {
+  id: string;
+  userId: string;
+  allowFriendRequests: boolean;
+  showOnlineStatus: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

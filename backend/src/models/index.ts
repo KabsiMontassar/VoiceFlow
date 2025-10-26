@@ -18,9 +18,19 @@ export class UserModel extends Model implements User {
   declare age: number | null;
   declare country: string | null;
   declare gender: 'male' | 'female' | null;
+  declare bio: string | null; // User bio/description
   declare createdAt: Date;
   declare updatedAt: Date;
   declare lastSeen: Date;
+}
+
+export class UserSettingsModel extends Model {
+  declare id: string;
+  declare userId: string;
+  declare allowFriendRequests: boolean;
+  declare showOnlineStatus: boolean;
+  declare createdAt: Date;
+  declare updatedAt: Date;
 }
 
 export class FriendRequestModel extends Model {
@@ -142,7 +152,7 @@ export const initializeModels = (sequelize: Sequelize): void => {
         allowNull: false,
       },
       friendCode: {
-        type: DataTypes.STRING(12),
+        type: DataTypes.STRING(15),
         allowNull: false,
         unique: true,
       },
@@ -160,6 +170,10 @@ export const initializeModels = (sequelize: Sequelize): void => {
       },
       gender: {
         type: DataTypes.ENUM('male', 'female'),
+        allowNull: true,
+      },
+      bio: {
+        type: DataTypes.TEXT,
         allowNull: true,
       },
       lastSeen: {
@@ -629,6 +643,54 @@ export const initializeModels = (sequelize: Sequelize): void => {
     },
   );
 
+  // UserSettings model
+  UserSettingsModel.init(
+    {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
+      userId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        unique: true,
+        references: {
+          model: 'users',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+      },
+      allowFriendRequests: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        allowNull: false,
+      },
+      showOnlineStatus: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        allowNull: false,
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+      },
+    },
+    {
+      sequelize,
+      modelName: 'UserSettings',
+      tableName: 'user_settings',
+      timestamps: true,
+      indexes: [
+        { fields: ['userId'], unique: true },
+      ],
+    },
+  );
+
   // Set up associations
   UserModel.hasMany(RoomModel, { foreignKey: 'createdById', as: 'createdRooms' });
   RoomModel.belongsTo(UserModel, { foreignKey: 'createdById', as: 'creator' });
@@ -673,6 +735,10 @@ export const initializeModels = (sequelize: Sequelize): void => {
   DirectMessageModel.belongsTo(UserModel, { foreignKey: 'receiverId', as: 'receiver' });
   UserModel.hasMany(DirectMessageModel, { foreignKey: 'senderId', as: 'sentDirectMessages' });
   UserModel.hasMany(DirectMessageModel, { foreignKey: 'receiverId', as: 'receivedDirectMessages' });
+
+  // User settings associations
+  UserModel.hasOne(UserSettingsModel, { foreignKey: 'userId', as: 'settings' });
+  UserSettingsModel.belongsTo(UserModel, { foreignKey: 'userId', as: 'user' });
 };
 
 export default {
@@ -685,5 +751,6 @@ export default {
   FriendshipModel,
   RoomBanModel,
   DirectMessageModel,
+  UserSettingsModel,
   initializeModels,
 };

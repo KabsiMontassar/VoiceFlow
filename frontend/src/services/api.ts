@@ -100,8 +100,17 @@ class ApiClient {
   }
 
   private loadTokens(): void {
-    // Don't load from localStorage anymore - Zustand handles persistence
-    // This method is kept for backward compatibility but does nothing
+    // Load from localStorage as fallback during initialization
+    // Zustand will override these once it rehydrates
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    
+    if (accessToken) {
+      this.accessToken = accessToken;
+    }
+    if (refreshToken) {
+      this.refreshToken = refreshToken;
+    }
   }
 
   setAccessToken(token: string): void {
@@ -330,7 +339,7 @@ class ApiClient {
    * Send friend request by friend code
    */
   async sendFriendRequest(friendCode: string) {
-    const response = await this.client.post('/api/friends/request', { friendCode });
+    const response = await this.client.post('/api/v1/friends/request', { friendCode });
     return response.data as ApiResponse;
   }
 
@@ -338,7 +347,7 @@ class ApiClient {
    * Get pending friend requests (received)
    */
   async getPendingFriendRequests() {
-    const response = await this.client.get('/api/friends/requests/pending');
+    const response = await this.client.get('/api/v1/friends/requests/pending');
     return response.data as ApiResponse;
   }
 
@@ -346,7 +355,7 @@ class ApiClient {
    * Get sent friend requests
    */
   async getSentFriendRequests() {
-    const response = await this.client.get('/api/friends/requests/sent');
+    const response = await this.client.get('/api/v1/friends/requests/sent');
     return response.data as ApiResponse;
   }
 
@@ -354,7 +363,7 @@ class ApiClient {
    * Accept friend request
    */
   async acceptFriendRequest(requestId: string) {
-    const response = await this.client.post(`/api/friends/requests/${requestId}/accept`);
+    const response = await this.client.post(`/api/v1/friends/requests/${requestId}/accept`);
     return response.data as ApiResponse;
   }
 
@@ -362,7 +371,7 @@ class ApiClient {
    * Reject friend request
    */
   async rejectFriendRequest(requestId: string) {
-    const response = await this.client.post(`/api/friends/requests/${requestId}/reject`);
+    const response = await this.client.post(`/api/v1/friends/requests/${requestId}/reject`);
     return response.data as ApiResponse;
   }
 
@@ -370,7 +379,7 @@ class ApiClient {
    * Cancel sent friend request
    */
   async cancelFriendRequest(requestId: string) {
-    const response = await this.client.delete(`/api/friends/requests/${requestId}`);
+    const response = await this.client.delete(`/api/v1/friends/requests/${requestId}`);
     return response.data as ApiResponse;
   }
 
@@ -378,7 +387,7 @@ class ApiClient {
    * Get friends list with online status
    */
   async getFriends() {
-    const response = await this.client.get('/api/friends');
+    const response = await this.client.get('/api/v1/friends');
     return response.data as ApiResponse;
   }
 
@@ -386,7 +395,7 @@ class ApiClient {
    * Remove friend
    */
   async removeFriend(friendId: string) {
-    const response = await this.client.delete(`/api/friends/${friendId}`);
+    const response = await this.client.delete(`/api/v1/friends/${friendId}`);
     return response.data as ApiResponse;
   }
 
@@ -394,7 +403,7 @@ class ApiClient {
    * Get friend count
    */
   async getFriendCount() {
-    const response = await this.client.get('/api/friends/count');
+    const response = await this.client.get('/api/v1/friends/count');
     return response.data as ApiResponse;
   }
 
@@ -402,7 +411,7 @@ class ApiClient {
    * Check if users are friends
    */
   async checkFriendship(friendId: string) {
-    const response = await this.client.get(`/api/friends/check/${friendId}`);
+    const response = await this.client.get(`/api/v1/friends/check/${friendId}`);
     return response.data as ApiResponse;
   }
 
@@ -427,6 +436,7 @@ class ApiClient {
     country?: string;
     gender?: 'male' | 'female' | null;
     avatarUrl?: string;
+    bio?: string;
   }) {
     const response = await this.client.patch('/api/users/me', data);
     return response.data as ApiResponse;
@@ -440,6 +450,29 @@ class ApiClient {
       currentPassword,
       newPassword
     });
+    return response.data as ApiResponse;
+  }
+
+  // ====================
+  // SETTINGS API
+  // ====================
+
+  /**
+   * Get user settings
+   */
+  async getUserSettings() {
+    const response = await this.client.get('/api/v1/settings');
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Update user settings
+   */
+  async updateUserSettings(data: {
+    allowFriendRequests?: boolean;
+    showOnlineStatus?: boolean;
+  }) {
+    const response = await this.client.patch('/api/v1/settings', data);
     return response.data as ApiResponse;
   }
 

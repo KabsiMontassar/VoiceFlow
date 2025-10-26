@@ -125,7 +125,8 @@ export function ChatInterface() {
     };
 
     loadRoomData();
-  }, [roomId, user, setRoomMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, user]);
 
   // Socket event handlers
   useEffect(() => {
@@ -201,17 +202,8 @@ export function ChatInterface() {
         
         // If this is our own message, remove any temporary version first
         if (user && message.userId === user.id) {
-          // Remove temp messages for this user (they start with "temp-")
-          const currentMessages = currentRoomMessages[roomId] || [];
-          const tempMessages = currentMessages.filter(m => m.id.startsWith('temp-') && m.userId === user.id);
-          
-          // Remove the most recent temp message if it has the same content
-          if (tempMessages.length > 0) {
-            const lastTemp = tempMessages[tempMessages.length - 1];
-            if (lastTemp.content === message.content) {
-              removeMessage(lastTemp.id, roomId);
-            }
-          }
+          // Use callback form to get current state
+          removeMessage(`temp-${message.userId}`, roomId);
         }
         
         addMessage(roomId, messageWithAuthor as any);
@@ -406,14 +398,16 @@ export function ChatInterface() {
       socketClient.typingStop(roomId);
       socketClient.leaveRoom(roomId);
     };
-  }, [roomId, user, addMessage, removeMessage, currentRoomMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, user]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!messageInput.trim() || !user || !roomId) return;
 
-    const tempId = `temp-${Date.now()}`;
+    // Use consistent tempId based on user ID for easy removal
+    const tempId = `temp-${user.id}`;
     const messageContent = messageInput.trim();
     
     const tempMessage = {
@@ -856,9 +850,12 @@ export function ChatInterface() {
           </div>
         </div>
 
-        {/* Members Sidebar */}
-        {showMembers && (
-          <div className="w-80 bg-background-secondary border-l border-default flex flex-col shadow-2xl">
+        {/* Members Sidebar with smooth transition */}
+        <div className={`bg-background-secondary border-l border-default flex flex-col shadow-2xl transition-all duration-300 ease-in-out ${
+          showMembers ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden'
+        }`}>
+          {showMembers && (
+            <>
             {/* Members List Section */}
             <div className="flex-1 flex flex-col min-h-0">
               <div className="p-5 border-b border-default bg-background-tertiary/50">
@@ -1004,8 +1001,9 @@ export function ChatInterface() {
                 </div>
               </div>
             </div>
+            </>
+          )}
           </div>
-        )}
       </div>
     </div>
   );

@@ -28,12 +28,15 @@ export default function PrivateChatModal({ isOpen, onClose, friend }: PrivateCha
   useEffect(() => {
     if (isOpen && friendId) {
       loadMessages(friendId, []);
-      const messageIds = conversationMessages.map(m => m.id);
-      if (messageIds.length > 0) {
+      // Mark existing messages as read
+      const existingMessages = conversationMessages;
+      if (existingMessages.length > 0) {
+        const messageIds = existingMessages.map(m => m.id);
         markAsRead(friendId, messageIds);
       }
     }
-  }, [isOpen, friendId, loadMessages, markAsRead, conversationMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, friendId]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {

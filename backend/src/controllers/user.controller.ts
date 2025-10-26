@@ -69,7 +69,7 @@ export class UserController {
         throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
       }
 
-      const { username, age, country, gender, avatarUrl } = req.body;
+      const { username, age, country, gender, avatarUrl, bio } = req.body;
 
       const user = await UserService.updateProfile(userId, {
         username,
@@ -77,6 +77,7 @@ export class UserController {
         country,
         gender,
         avatarUrl,
+        bio,
       });
 
       res.status(200).json(successResponse(user, 'Profile updated successfully'));

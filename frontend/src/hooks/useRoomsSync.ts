@@ -50,7 +50,8 @@ export function useRoomsSync() {
       console.log('[RoomsSync] Updating Zustand store with rooms:', roomsData.length);
       setRooms(roomsData as Room[]);
     }
-  }, [roomsData, setRooms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomsData]);
 
   // Listen for socket events to keep rooms in sync
   useEffect(() => {

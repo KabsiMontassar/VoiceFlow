@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import {  X } from 'lucide-react';
 
 interface EmojiPickerProps {
   isOpen: boolean;
@@ -67,7 +67,6 @@ const EMOJI_CATEGORIES: EmojiCategory[] = [
 ];
 
 export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }: EmojiPickerProps) {
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(0);
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -113,11 +112,8 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
     // Picker only closes via close button or send message
   };
 
-  const filteredEmojis = searchQuery
-    ? EMOJI_CATEGORIES.flatMap(category => category.emojis).filter(emoji =>
-        emoji.includes(searchQuery.toLowerCase())
-      )
-    : EMOJI_CATEGORIES[selectedCategory]?.emojis || [];
+  const filteredEmojis = EMOJI_CATEGORIES[selectedCategory]?.emojis || [];
+      
 
   const positionStyles = position ? {
     position: 'absolute' as const,
@@ -145,22 +141,10 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
         </button>
       </div>
 
-      {/* Search */}
-      <div className="p-3 border-b border-subtle flex-shrink-0">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-text" />
-          <input
-            type="text"
-            placeholder="Search emojis..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input-base w-full pl-10 text-sm font-primary"
-          />
-        </div>
-      </div>
+     
 
       {/* Categories */}
-      {!searchQuery && (
+   
         <div className="flex overflow-x-auto border-b border-subtle flex-shrink-0">
           {EMOJI_CATEGORIES.map((category, index) => (
             <button
@@ -176,7 +160,7 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
             </button>
           ))}
         </div>
-      )}
+     
 
       {/* Emoji Grid - Scrollable */}
       <div className="flex-1 overflow-y-auto p-3 min-h-0">
@@ -193,7 +177,7 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
           ))}
         </div>
 
-        {filteredEmojis.length === 0 && searchQuery && (
+        {filteredEmojis.length === 0  && (
           <div className="text-center py-8 text-secondary-text">
             <span className="text-2xl">🤔</span>
             <p className="mt-2 text-sm font-primary">No emojis found</p>

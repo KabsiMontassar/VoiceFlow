@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Outlet, useNavigate } from '@tanstack/react-router';
+import { Tooltip } from 'react-tooltip';
+import 'react-tooltip/dist/react-tooltip.css';
 import { 
   Menu, 
   X, 
@@ -8,27 +10,42 @@ import {
   Settings, 
   LogOut, 
   Plus,
-  User,
   Bell,
   Search,
   Home
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useRoomStore } from '../../stores/roomStore';
+import { useFriendStore } from '../../stores/friendStore';
+import Avatar from '../ui/Avatar';
+import { FriendRequestsModal } from '../FriendRequestsModal';
 
 export function AppLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCopied, setShowCopied] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const { user, logout } = useAuthStore();
   const { rooms } = useRoomStore();
+  const { pendingRequests } = useFriendStore();
   const navigate = useNavigate();
 
   // Socket connection is handled globally by useSocketAuth hook in App.tsx
   // No need to initialize here
-
+  
   const handleLogout = () => {
     logout();
     navigate({ to: '/login' });
+  };
+
+  const handleCopyFriendCode = async () => {
+    if (user?.friendCode) {
+      await navigator.clipboard.writeText(user.friendCode);
+      setShowCopied(true);
+      setTimeout(() => {
+        setShowCopied(false);
+      }, 2000);
+    }
   };
 
   const handleRoomClick = async (roomId: string) => {
@@ -138,7 +155,7 @@ export function AppLayout() {
                     <Hash className="w-4 h-4" />
                   </div>
                   {!isCollapsed && (
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 text-left">
                       <div className="font-primary font-medium truncate">{room.name}</div>
                       <div className="text-xs text-muted-text truncate font-primary">
                         #{room.code}
@@ -164,21 +181,54 @@ export function AppLayout() {
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'}`}>
             {!isCollapsed && (
               <>
-                <div className="w-10 h-10 bg-gradient-to-br from-primary/80 to-secondary rounded-full flex items-center justify-center shadow-sm">
-                  <User className="w-5 h-5 text-black" />
-                </div>
+                <Avatar 
+                  avatarId={user?.avatarUrl}
+                  initials={user?.username?.charAt(0).toUpperCase()}
+                  size="md"
+                />
                 <div className="flex-1 min-w-0">
-                  <div className="text-primary-text font-primary font-medium truncate">{user?.username}</div>
+                  {/* Username with tooltip */}
+                  <div className="relative">
+                    <div 
+                      className="text-primary-text font-primary font-medium truncate cursor-pointer hover:text-primary transition-colors select-none"
+                      onClick={handleCopyFriendCode}
+                      data-tooltip-id="friend-code-tooltip"
+                      data-tooltip-content={showCopied ? 'Copied!' : user?.friendCode || ''}
+                    >
+                      {user?.username}
+                    </div>
+                    {user?.friendCode && (
+                      <Tooltip 
+                        id="friend-code-tooltip" 
+                        place="top"
+                        style={{
+                          backgroundColor: 'rgb(30, 30, 30)',
+                          color: 'rgb(204, 255, 0)',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          zIndex: 99999,
+                          fontFamily: 'monospace',
+                        }}
+                      />
+                    )}
+                  </div>
                   <div className="text-secondary-text text-sm truncate font-primary">{user?.email}</div>
                 </div>
                 <div className="flex space-x-1">
                   <button
-                    className="p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-primary transition-colors"
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-primary transition-colors relative"
                     title="Notifications"
                   >
                     <Bell className="w-4 h-4" />
+                    {pendingRequests.length > 0 && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full animate-pulse" />
+                    )}
                   </button>
                   <button
+                    onClick={() => navigate({ to: '/settings' })}
                     className="p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-primary transition-colors"
                     title="Settings"
                   >
@@ -211,6 +261,12 @@ export function AppLayout() {
       <div className="flex-1 flex flex-col bg-background-primary overflow-hidden">
         <Outlet />
       </div>
+
+      {/* Friend Requests Modal */}
+      <FriendRequestsModal 
+        isOpen={showNotifications} 
+        onClose={() => setShowNotifications(false)} 
+      />
     </div>
   );
 }

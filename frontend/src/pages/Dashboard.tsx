@@ -1,350 +1,468 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { 
+  Users, 
+  UserPlus, 
+  MessageCircle, 
+  // Settings as SettingsIcon,
+  Plus,
+  Search,
+  Circle,
+  Mail
+} from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
+// import { useAuthStore } from '../stores/authStore';
+import { useFriendStore } from '../stores/friendStore';
+import { useToastStore } from '../stores/toastStore';
 import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import Avatar from '../components/ui/Avatar';
 import Modal from '../components/ui/Modal';
-import Input from '../components/ui/Input';
+import CreateRoomModal from '../components/dashboard/CreateRoomModal';
+import JoinRoomModal from '../components/dashboard/JoinRoomModal';
+import FriendRequestModal from '../components/dashboard/FriendRequestModal';
+import PrivateChatModal from '../components/dashboard/PrivateChatModal';
+import { FriendCardSkeleton } from '../components/ui/LoadingSkeleton';
 import { apiClient } from '../services/api';
-import { useAuthStore } from '../stores/authStore';
-import { useRoomStore } from '../stores/roomStore';
-import type { FunctionComponent } from '../common/types';
+import type { FriendWithStatus } from '@voiceflow/shared';
 
-const Dashboard = (): FunctionComponent => {
-  const user = useAuthStore((state) => state.user);
-  const { rooms } = useRoomStore(); // Get rooms from global store
+type DashboardView = 'friends' | 'profile' | 'requests';
+
+export default function Dashboard() {
+  // const { user } = useAuthStore();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [currentView, setCurrentView] = useState<DashboardView>('friends');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Toast notifications
+  const { success, error: showError } = useToastStore();
+  
+  // Get friends from store
+  const { 
+    friends, 
+    pendingRequests,
+    // sentRequests,
+    isLoading: friendsLoading,
+    loadFriends,
+    loadPendingRequests,
+    loadSentRequests,
+    sendFriendRequest: sendRequest,
+    // acceptFriendRequest,
+    // rejectFriendRequest,
+    // removeFriend
+  } = useFriendStore();
+  
+  // Load friends on mount
+  useEffect(() => {
+    loadFriends();
+    loadPendingRequests();
+    loadSentRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Room modals state
   const [showCreateRoom, setShowCreateRoom] = useState(false);
-  const [showJoinRoom, setShowJoinRoom] = useState(false);
   const [roomName, setRoomName] = useState('');
-  const [roomDescription, setRoomDescription] = useState('');
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  
+  const [showJoinRoom, setShowJoinRoom] = useState(false);
   const [roomCode, setRoomCode] = useState('');
+  const [isJoiningRoom, setIsJoiningRoom] = useState(false);
+  
+  // Friend request state
+  const [showAddFriend, setShowAddFriend] = useState(false);
+  const [showFriendRequests, setShowFriendRequests] = useState(false);
+  const [friendCode, setFriendCode] = useState('');
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
+  
+  // Private chat state
+  const [showPrivateChat, setShowPrivateChat] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<FriendWithStatus | null>(null);
 
-  // Create room mutation
-  const createRoomMutation = useMutation({
-    mutationFn: async () => {
-      if (!roomName.trim()) throw new Error('Room name is required');
-      const response = await apiClient.createRoom({
-        name: roomName,
-        description: roomDescription,
-        maxUsers: 50,
-      });
-      console.log('Create room response:', response);
-      
-      // Check if the response was successful
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to create room');
-      }
-      
-      return response;
-    },
-    onSuccess: (response) => {
-      console.log('Room created successfully:', response);
-      setRoomName('');
-      setRoomDescription('');
-      setShowCreateRoom(false);
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-    },
-    onError: (error) => {
-      console.error('Failed to create room:', error);
-    },
-  });
+  // const [profileData, setProfileData] = useState({
+  //   username: user?.username || '',
+  //   email: user?.email || '',
+  //   currentPassword: '',
+  //   newPassword: '',
+  //   confirmPassword: '',
+  //   age: '',
+  //   country: '',
+  //   gender: '' as 'male' | 'female' | ''
+  // });
 
-  // Join room mutation
-  const joinRoomMutation = useMutation({
-    mutationFn: async () => {
-      if (!roomCode.trim()) throw new Error('Room code is required');
-      
-      // First get the room by code
-      const roomResponse = await apiClient.getRoomByCode(roomCode);
-      console.log('Room by code response:', roomResponse);
-      
-      if (!roomResponse.success) {
-        throw new Error(roomResponse.message || 'Room not found');
-      }
-      
-      const room = roomResponse.data as any;
-      if (!room) throw new Error('Room not found');
-      
-      // Then try to join the room
-      try {
-        const joinResponse = await apiClient.joinRoom(room.id);
-        
-        if (!joinResponse.success) {
-          throw new Error(joinResponse.message || 'Failed to join room');
-        }
-      } catch (error: any) {
-        // Check if already in room
-        const errorCode = error?.response?.data?.error?.code;
-        if (errorCode === 'ALREADY_IN_ROOM') {
-          console.log('[Dashboard] Already in room:', room.id);
-          // Not an error - we're already a member
-        } else {
-          throw error;
-        }
-      }
-      
-      return room;
-    },
-    onSuccess: () => {
-      setRoomCode('');
-      setShowJoinRoom(false);
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-    },
-    onError: (error) => {
-      console.error('Failed to join room:', error);
-    },
-  });
+  const filteredFriends = friends.filter(friend =>
+    friend.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    friend.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const handleCreateRoom = () => {
-    createRoomMutation.mutate();
-  };
+  const onlineFriends = filteredFriends.filter(f => f.isOnline);
+  const offlineFriends = filteredFriends.filter(f => !f.isOnline);
 
-  const handleJoinRoom = () => {
-    joinRoomMutation.mutate();
-  };
-
-  const copyRoomCode = async (code: string) => {
+  const handleSendFriendRequest = async () => {
+    if (!friendCode.trim()) return;
+    
     try {
-      await navigator.clipboard.writeText(code);
-      // You could add a toast notification here
-      console.log('Room code copied to clipboard');
+      setIsAddingFriend(true);
+      await sendRequest(friendCode);
+      success('Friend request sent!');
+      setFriendCode('');
+      setShowAddFriend(false);
     } catch (error) {
-      console.error('Failed to copy room code:', error);
+      console.error('Failed to send friend request:', error);
+      showError('Failed to send friend request. Please check the friend code and try again.');
+    } finally {
+      setIsAddingFriend(false);
     }
   };
 
-  const enterRoom = (roomId: string) => {
-    navigate({ to: `/room/${roomId}` });
+  const handleCreateRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roomName.trim()) return;
+
+    try {
+      setIsCreatingRoom(true);
+      const response = await apiClient.createRoom({
+        name: roomName,
+        description: '',
+        maxUsers: 50
+      });
+      
+      if (response.success && response.data) {
+        const room = response.data as { id: string };
+        success(`Room "${roomName}" created successfully!`);
+        setShowCreateRoom(false);
+        setRoomName('');
+        navigate({ to: `/room/${room.id}` });
+      }
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      showError('Failed to create room. Please try again.');
+    } finally {
+      setIsCreatingRoom(false);
+    }
+  };
+
+  const handleJoinRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roomCode.trim()) return;
+
+    try {
+      setIsJoiningRoom(true);
+      const response = await apiClient.joinRoomByCode(roomCode);
+      
+      if (response.success && response.data) {
+        const room = response.data as { id: string };
+        success('Successfully joined room!');
+        setShowJoinRoom(false);
+        setRoomCode('');
+        navigate({ to: `/room/${room.id}` });
+      }
+    } catch (error) {
+      console.error('Failed to join room:', error);
+      showError('Failed to join room. Please check the code and try again.');
+    } finally {
+      setIsJoiningRoom(false);
+    }
+  };
+
+  // const handleUpdateProfile = () => {
+  //   // TODO: Implement API call
+  //   console.log('Updating profile:', profileData);
+  // };
+
+  const handleStartPrivateChat = (friendId: string) => {
+    const friend = friends.find(f => f.id === friendId);
+    if (friend) {
+      setSelectedFriend(friend);
+      setShowPrivateChat(true);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background-primary">
+    <div className="h-full flex flex-col bg-background-primary">
       {/* Header */}
-      <header className="bg-background-secondary/80 backdrop-blur-xl border-b border-default sticky top-0 z-40 shadow-lg shadow-black/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-                <div className="w-4 h-4 bg-black rounded-sm"></div>
-              </div>
-              <h1 className="text-2xl font-bold text-primary-text tracking-tight font-primary">VoiceFlow</h1>
-            </div>
-
-            <nav className="hidden md:flex items-center gap-1">
-              <a href="#" className="nav-link nav-link-active">
-                Dashboard
-              </a>
-              <a href="#" className="nav-link">
-                Rooms
-              </a>
-              <a href="#" className="nav-link">
-                Settings
-              </a>
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-semibold text-primary-text font-primary">{user?.username}</p>
-                <p className="text-xs text-muted font-primary">{user?.email}</p>
-              </div>
-              <Avatar initials={user?.username?.substring(0, 2).toUpperCase() || 'U'} status="active" />
-            </div>
+      <div className="bg-background-secondary border-b border-default px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-primary-text font-primary">
+              {currentView === 'friends' && 'Friends'}
+              {currentView === 'requests' && 'Friend Requests'}
+            </h1>
+            <p className="text-secondary-text text-sm font-primary mt-1">
+              {currentView === 'friends' && `${onlineFriends.length} online • ${offlineFriends.length} offline`}
+              {currentView === 'requests' && 'Pending friend requests'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {currentView === 'friends' && pendingRequests.length > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowFriendRequests(true)}
+                className="flex items-center gap-2 relative"
+              >
+                <Mail className="w-4 h-4" />
+                Requests
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-black rounded-full text-xs font-bold flex items-center justify-center">
+                  {pendingRequests.length}
+                </span>
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowCreateRoom(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Create Room
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowJoinRoom(true)}
+              className="flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Join Room
+            </Button>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Welcome Section */}
-        <div className="mb-12">
-          <h2 className="text-4xl font-bold text-primary-text mb-3 tracking-tight font-primary">
-            Welcome back, {user?.username}!
-          </h2>
-          <p className="text-muted text-lg font-primary">
-            Manage your rooms and connect with your team
-          </p>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="mb-10 flex gap-4">
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => setShowCreateRoom(true)}
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-2 mt-4">
+          <button
+            onClick={() => setCurrentView('friends')}
+            className={`px-4 py-2 rounded-lg font-primary font-medium transition-colors ${
+              currentView === 'friends'
+                ? 'bg-primary text-black'
+                : 'text-secondary-text hover:text-primary-text hover:bg-background-tertiary'
+            }`}
           >
-            <span className="text-lg mr-2">+</span>
-            Create New Room
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            onClick={() => setShowJoinRoom(true)}
-          >
-            Join Room
-          </Button>
+            <Users className="w-4 h-4 inline mr-2" />
+            Friends
+          </button>
         </div>
+      </div>
 
-        {/* Rooms Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rooms.length > 0 ? (
-            rooms.map((room: any) => (
-              <Card key={room.id} variant="default" className="hover:shadow-[0_8px_24px_rgba(201,239,49,0.15)] group">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-primary-text mb-2 group-hover:text-primary transition-colors font-primary">{room.name}</h3>
-                    <p className="text-sm text-muted leading-relaxed font-primary">
-                      {room.description || 'No description'}
-                    </p>
-                    <div className="flex items-center gap-2 mt-3">
-                      <span className="text-xs text-muted font-medium font-primary">Code:</span>
-                      <span className="inline-block px-3 py-1.5 bg-background-secondary text-primary rounded-lg text-xs font-bold tracking-wider border border-primary/20 font-primary">
-                        {room.code}
-                      </span>
-                      <button
-                        onClick={() => copyRoomCode(room.code)}
-                        className="p-1.5 text-muted hover:text-primary hover:bg-background-secondary rounded-md transition-all"
-                        title="Copy room code"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-semibold shadow-sm border border-primary/20 font-primary">
-                    {room.memberCount || 0}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-subtle">
-                  <span className="text-xs text-muted font-medium font-primary">
-                    {new Date(room.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => enterRoom(room.id)}
-                    className="hover:text-primary font-primary"
-                  >
-                    Enter →
-                  </Button>
-                </div>
-              </Card>
-            ))
-          ) : (
-            <Card className="col-span-full text-center py-16 border-2 border-dashed border-default bg-background-tertiary/50">
-              <div className="text-center">
-                <div className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20">
-                  <svg
-                    className="w-10 h-10 text-primary"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-primary-text mb-3 font-primary">No rooms yet</h3>
-                <p className="text-muted mb-6 max-w-sm mx-auto font-primary">
-                  Create your first room to start collaborating with your team
-                </p>
-                <Button
-                  variant="primary"
-                  onClick={() => setShowCreateRoom(true)}
-                >
-                  <span className="text-lg mr-2">+</span>
-                  Create Room
-                </Button>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {/* Friends View */}
+        {currentView === 'friends' && (
+          <div className="max-w-6xl mx-auto">
+            {/* Search and Add Friend */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-text" />
+                <input
+                  type="text"
+                  placeholder="Search friends..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input-base w-full pl-10 font-primary"
+                />
               </div>
-            </Card>
-          )}
-        </div>
-      </main>
+              <Button
+                variant="primary"
+                onClick={() => setShowAddFriend(true)}
+                className="flex items-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                Add Friend
+              </Button>
+            </div>
 
-      {/* Create Room Modal */}
-      <Modal
+            {/* Online Friends */}
+            {friendsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <FriendCardSkeleton />
+                <FriendCardSkeleton />
+                <FriendCardSkeleton />
+              </div>
+            ) : onlineFriends.length > 0 ? (
+              <div className="mb-8">
+                <h2 className="text-lg font-bold text-primary-text font-primary mb-4 flex items-center gap-2">
+                  <Circle className="w-3 h-3 fill-success text-success" />
+                  Online — {onlineFriends.length}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {onlineFriends.map((friend) => (
+                    <FriendCard
+                      key={friend.id}
+                      friend={friend}
+                      onStartChat={handleStartPrivateChat}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Offline Friends */}
+            {!friendsLoading && offlineFriends.length > 0 && (
+              <div>
+                <h2 className="text-lg font-bold text-primary-text font-primary mb-4 flex items-center gap-2">
+                  <Circle className="w-3 h-3 fill-muted-text text-muted-text" />
+                  Offline — {offlineFriends.length}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {offlineFriends.map((friend) => (
+                    <FriendCard
+                      key={friend.id}
+                      friend={friend}
+                      onStartChat={handleStartPrivateChat}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!friendsLoading && filteredFriends.length === 0 && (
+              <div className="text-center py-16">
+                <Users className="w-16 h-16 text-muted-text mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-primary-text mb-2 font-primary">
+                  {searchQuery ? 'No friends found' : 'No friends yet'}
+                </h3>
+                <p className="text-secondary-text mb-6 font-primary">
+                  {searchQuery
+                    ? 'Try a different search term'
+                    : 'Start by adding some friends to your network'}
+                </p>
+                {!searchQuery && (
+                  <Button variant="primary" onClick={() => setShowAddFriend(true)}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Your First Friend
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      <CreateRoomModal
         isOpen={showCreateRoom}
         onClose={() => setShowCreateRoom(false)}
-        title="Create New Room"
-        size="md"
-      >
-        <div className="space-y-4">
-          <Input
-            label="Room Name"
-            placeholder="Team Meeting"
-            value={roomName}
-            onChange={(e) => setRoomName(e.target.value)}
-          />
-
-          <Input
-            label="Description (optional)"
-            placeholder="What's this room about?"
-            value={roomDescription}
-            onChange={(e) => setRoomDescription(e.target.value)}
-          />
-
-          <div className="flex gap-3 pt-4">
-            <Button variant="ghost" onClick={() => setShowCreateRoom(false)} className="flex-1">
-              Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={handleCreateRoom} 
-              className="flex-1"
-              isLoading={createRoomMutation.isPending}
-            >
-              Create
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Join Room Modal */}
-      <Modal
+        roomName={roomName}
+        setRoomName={setRoomName}
+        onSubmit={handleCreateRoom}
+        isLoading={isCreatingRoom}
+      />
+      <JoinRoomModal
         isOpen={showJoinRoom}
         onClose={() => setShowJoinRoom(false)}
-        title="Join Room"
-        size="md"
+        roomCode={roomCode}
+        setRoomCode={setRoomCode}
+        onSubmit={handleJoinRoom}
+        isLoading={isJoiningRoom}
+      />
+      <FriendRequestModal
+        isOpen={showFriendRequests}
+        onClose={() => setShowFriendRequests(false)}
+      />
+      <PrivateChatModal
+        isOpen={showPrivateChat}
+        onClose={() => {
+          setShowPrivateChat(false);
+          setSelectedFriend(null);
+        }}
+        friend={selectedFriend}
+      />
+
+      {/* Add Friend Modal */}
+      <Modal
+        isOpen={showAddFriend}
+        onClose={() => setShowAddFriend(false)}
+        title="Add Friend"
       >
         <div className="space-y-4">
-          <Input
-            label="Room Code"
-            placeholder="Enter the room code"
-            value={roomCode}
-            onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-            maxLength={8}
-          />
-
-          <p className="text-sm text-neutral-600 font-mono">
-            Ask the room creator for the room code to join
-          </p>
-
-          <div className="flex gap-3 pt-4">
-            <Button variant="ghost" onClick={() => setShowJoinRoom(false)} className="flex-1">
+          <div>
+            <label className="block text-sm font-medium text-secondary-text mb-2 font-primary">
+              Friend Code
+            </label>
+            <input
+              type="text"
+              value={friendCode}
+              onChange={(e) => setFriendCode(e.target.value)}
+              className="input-base w-full font-primary uppercase"
+              placeholder="ABC-DEF-GHI-JKL"
+              maxLength={15}
+              autoFocus
+            />
+            <p className="text-xs text-secondary-text/70 mt-1">
+              Enter your friend's 15-character code (including dashes)
+            </p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setShowAddFriend(false)}>
               Cancel
             </Button>
-            <Button 
-              variant="primary" 
-              onClick={handleJoinRoom} 
-              className="flex-1"
-              isLoading={joinRoomMutation.isPending}
-              disabled={!roomCode.trim()}
-            >
-              Join Room
+            <Button variant="primary" onClick={handleSendFriendRequest} disabled={!friendCode || isAddingFriend}>
+              {isAddingFriend ? 'Sending...' : 'Send Request'}
             </Button>
           </div>
         </div>
       </Modal>
     </div>
   );
-};
+}
 
-export default Dashboard;
+// Friend Card Component - moved to top
+interface FriendCardPropsSecond {
+  friend: FriendWithStatus;
+  onStartChat: (friendId: string) => void;
+}
+
+function FriendCard({ friend, onStartChat }: FriendCardPropsSecond) {
+  return (
+    <div className="card p-4 hover:shadow-lg hover:shadow-primary/10 transition-all group">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary/80 to-secondary rounded-full flex items-center justify-center shadow-sm">
+              <span className="text-black font-bold text-lg font-primary">
+                {friend.username.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div
+              className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-background-tertiary ${
+                friend.isOnline ? 'bg-success' : 'bg-muted-text'
+              }`}
+            />
+          </div>
+          <div>
+            <h3 className="font-bold text-primary-text font-primary group-hover:text-primary transition-colors">
+              {friend.username}
+            </h3>
+            <p className="text-xs text-secondary-text font-primary">{friend.email}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Friend Info */}
+      <div className="flex items-center gap-4 text-xs text-secondary-text mb-3 font-primary">
+        {friend.age && <span>{friend.age} years</span>}
+        {friend.country && <span>• {friend.country}</span>}
+        {friend.gender && <span>• {friend.gender === 'male' ? '♂' : '♀'}</span>}
+      </div>
+
+      {/* Status */}
+      <div className="text-xs text-secondary-text mb-3 font-primary">
+        {friend.isOnline ? (
+          <span className="text-success">● Online</span>
+        ) : (
+          <span>
+            Last seen{' '}
+            {friend.lastSeen ? new Date(friend.lastSeen).toLocaleDateString() : 'recently'}
+          </span>
+        )}
+      </div>
+
+      {/* Actions */}
+      <button
+        onClick={() => onStartChat(friend.id)}
+        className="w-full btn-primary flex items-center justify-center gap-2 text-sm"
+      >
+        <MessageCircle className="w-4 h-4" />
+        Message
+      </button>
+    </div>
+  );
+}

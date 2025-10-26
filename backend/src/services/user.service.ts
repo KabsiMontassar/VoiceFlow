@@ -37,6 +37,7 @@ export class UserService {
       country?: string;
       gender?: 'male' | 'female';
       avatarUrl?: string;
+      bio?: string;
     }
   ): Promise<User> {
     const user = await UserModel.findByPk(userId);
@@ -60,6 +61,13 @@ export class UserService {
     if (updates.age !== undefined) {
       if (updates.age < 13 || updates.age > 120) {
         throw new AppError('Age must be between 13 and 120', 400, 'VALIDATION_ERROR');
+      }
+    }
+
+    // Validate bio length
+    if (updates.bio !== undefined && updates.bio !== null) {
+      if (updates.bio.length > 500) {
+        throw new AppError('Bio must be less than 500 characters', 400, 'VALIDATION_ERROR');
       }
     }
 

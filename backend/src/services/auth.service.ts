@@ -2,7 +2,7 @@
  * Enhanced Auth Service with Session Management
  */
 
-import { UserModel } from '../models/index';
+import { UserModel, UserSettingsModel } from '../models/index';
 import { jwtService, TokenPair } from '../utils/jwt';
 import { hashPassword, comparePassword } from '../utils/password';
 import { AppError } from '../utils/responses';
@@ -83,10 +83,24 @@ export class AuthService {
       age: null,
       country: null,
       gender: null,
+      bio: null,
+    });
+
+    // Create default user settings
+    await UserSettingsModel.create({
+      userId: user.id,
+      allowFriendRequests: true,
+      showOnlineStatus: true,
     });
 
     const userJson = user.toJSON();
     delete (userJson as unknown as Record<string, unknown>).passwordHash;
+
+    // Fetch and attach settings
+    const settings = await UserSettingsModel.findOne({ where: { userId: user.id } });
+    if (settings) {
+      (userJson as any).settings = settings.toJSON();
+    }
 
     // Generate tokens and mark user as active
     const payload: AuthPayload = {
@@ -143,6 +157,34 @@ export class AuthService {
       );
     }
 
+    // CRITICAL FIX: Generate friendCode if it doesn't exist (for old users)
+    if (!user.friendCode) {
+      logger.warn(`User ${user.id} missing friendCode, generating one now...`);
+      let friendCode = generateFriendCode();
+      let codeExists = await UserModel.findOne({ where: { friendCode } });
+      
+      // Ensure uniqueness
+      while (codeExists) {
+        friendCode = generateFriendCode();
+        codeExists = await UserModel.findOne({ where: { friendCode } });
+      }
+      
+      await user.update({ friendCode });
+      logger.info(`Generated friendCode ${friendCode} for user ${user.id}`);
+    }
+
+    // Ensure user has settings (create default if missing)
+    let userSettings = await UserSettingsModel.findOne({ where: { userId: user.id } });
+    if (!userSettings) {
+      logger.warn(`User ${user.id} missing settings, creating defaults...`);
+      userSettings = await UserSettingsModel.create({
+        userId: user.id,
+        allowFriendRequests: true,
+        showOnlineStatus: true,
+      });
+      logger.info(`Created default settings for user ${user.id}`);
+    }
+
     // Generate tokens and mark user as active
     const payload: AuthPayload = {
       userId: user.id,
@@ -158,6 +200,7 @@ export class AuthService {
     const userJson = user.toJSON();
     delete (userJson as unknown as Record<string, unknown>).passwordHash;
     (userJson as any).status = 'active';
+    (userJson as any).settings = userSettings.toJSON();
 
     // Set user as ACTIVE in Redis (global status based on authentication)
     await redisService.setUserPresence(user.id, UserPresenceStatus.ACTIVE);
@@ -263,6 +306,34 @@ export class AuthService {
       );
     }
 
+    // CRITICAL FIX: Generate friendCode if it doesn't exist (for old users)
+    if (!user.friendCode) {
+      logger.warn(`User ${user.id} missing friendCode, generating one now...`);
+      let friendCode = generateFriendCode();
+      let codeExists = await UserModel.findOne({ where: { friendCode } });
+      
+      // Ensure uniqueness
+      while (codeExists) {
+        friendCode = generateFriendCode();
+        codeExists = await UserModel.findOne({ where: { friendCode } });
+      }
+      
+      await user.update({ friendCode });
+      logger.info(`Generated friendCode ${friendCode} for user ${user.id}`);
+    }
+
+    // Ensure user has settings (create default if missing)
+    let userSettings = await UserSettingsModel.findOne({ where: { userId: user.id } });
+    if (!userSettings) {
+      logger.warn(`User ${user.id} missing settings, creating defaults...`);
+      userSettings = await UserSettingsModel.create({
+        userId: user.id,
+        allowFriendRequests: true,
+        showOnlineStatus: true,
+      });
+      logger.info(`Created default settings for user ${user.id}`);
+    }
+
     // Check if user is actually active based on sessions
     const isActive = await jwtService.isUserActive(userId);
     const actualStatus = isActive ? UserPresenceStatus.ACTIVE : UserPresenceStatus.INACTIVE;
@@ -275,6 +346,7 @@ export class AuthService {
     const userJson = user.toJSON();
     delete (userJson as unknown as Record<string, unknown>).passwordHash;
     (userJson as any).status = actualStatus;
+    (userJson as any).settings = userSettings.toJSON();
 
     return userJson as User;
   }

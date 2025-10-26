@@ -69,18 +69,24 @@ const Navigation = (): FunctionComponent => {
                 {/* Dropdown Menu */}
                 {showMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-background-tertiary rounded-lg shadow-lg border border-default py-2 z-50">
-                    <a
-                      href="#"
-                      className="block px-4 py-2 text-sm font-primary text-primary-text hover:bg-background-secondary transition-colors"
+                    <button
+                      onClick={() => {
+                        setShowMenu(false);
+                        navigate({ to: '/dashboard' });
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm font-primary text-primary-text hover:bg-background-secondary transition-colors"
                     >
                       Profile
-                    </a>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 text-sm font-primary text-primary-text hover:bg-background-secondary transition-colors"
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowMenu(false);
+                        navigate({ to: '/settings' });
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm font-primary text-primary-text hover:bg-background-secondary transition-colors"
                     >
                       Settings
-                    </a>
+                    </button>
                     <hr className="my-2 border-subtle" />
                     <button
                       onClick={handleLogout}

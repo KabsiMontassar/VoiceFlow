@@ -5,6 +5,7 @@ import roomRoutes from './room.routes';
 import messageRoutes from './message.routes';
 import userRoutes from './user.routes';
 import friendRoutes from './friend.routes';
+import settingsRoutes from './settings.routes';
 import debugRoutes from './debug.routes';
 
 const router: ExpressRouter = Router();
@@ -17,6 +18,7 @@ router.use('/rooms', roomRoutes);
 router.use('/messages', messageRoutes);
 router.use('/users', userRoutes);
 router.use('/friends', friendRoutes);
+router.use('/settings', settingsRoutes);
 
 // Debug routes (only in development)
 if (process.env.NODE_ENV === 'development') {

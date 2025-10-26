@@ -1,5 +1,8 @@
 import { Sequelize } from 'sequelize';
 import * as migration001 from './001-add-friendcode-to-users';
+import * as migration002 from './002-update-friendcode-length';
+import * as migration003 from './003-add-bio-to-users';
+import * as migration004 from './004-create-user-settings';
 
 interface Migration {
   name: string;
@@ -12,6 +15,21 @@ const migrations: Migration[] = [
     name: '001-add-friendcode-to-users',
     up: migration001.up,
     down: migration001.down,
+  },
+  {
+    name: '002-update-friendcode-length',
+    up: migration002.up,
+    down: migration002.down,
+  },
+  {
+    name: '003-add-bio-to-users',
+    up: migration003.up,
+    down: migration003.down,
+  },
+  {
+    name: '004-create-user-settings',
+    up: migration004.up,
+    down: migration004.down,
   },
 ];
 
