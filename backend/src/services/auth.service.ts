@@ -10,6 +10,7 @@ import { ERROR_CODES, User, AuthPayload, UserPresenceStatus } from '../../../sha
 import { generateUUID } from '../../../shared/src/utils';
 import logger from '../utils/logger';
 import { redisService } from './redis.service';
+import { generateFriendCode } from '../utils/codeGenerator';
 
 export interface LoginSessionInfo {
   deviceId?: string;
@@ -60,14 +61,28 @@ export class AuthService {
     // Hash password
     const passwordHash = await hashPassword(password);
 
+    // Generate unique friend code
+    let friendCode = generateFriendCode();
+    let codeExists = await UserModel.findOne({ where: { friendCode } });
+    
+    // Ensure uniqueness
+    while (codeExists) {
+      friendCode = generateFriendCode();
+      codeExists = await UserModel.findOne({ where: { friendCode } });
+    }
+
     // Create user with inactive status initially
     const user = await UserModel.create({
       id: generateUUID(),
       email,
       username,
       passwordHash,
+      friendCode,
       avatarUrl: null,
       status: UserPresenceStatus.INACTIVE,
+      age: null,
+      country: null,
+      gender: null,
     });
 
     const userJson = user.toJSON();

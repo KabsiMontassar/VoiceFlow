@@ -8,6 +8,8 @@ import jwt from 'jsonwebtoken';
 import { messageService } from '../services/message.service';
 import { presenceService } from '../services/presence.service';
 import { redisService } from '../services/redis.service';
+import { FriendService } from '../services/friend.service';
+import { UserService } from '../services/user.service';
 import logger from '../utils/logger';
 
 interface AuthenticatedSocket extends Socket {
@@ -257,6 +259,45 @@ export class OptimizedSocketHandlers {
     // Heartbeat for connection health
     socket.on('heartbeat', () => {
       socket.emit('heartbeat_ack', { timestamp: Date.now() });
+    });
+
+    // Friend system events
+    socket.on('friend_request_sent', async (data) => {
+      await this.handleFriendRequestSent(socket, data);
+    });
+
+    socket.on('friend_request_accepted', async (data) => {
+      await this.handleFriendRequestAccepted(socket, data);
+    });
+
+    socket.on('friend_removed', async (data) => {
+      await this.handleFriendRemoved(socket, data);
+    });
+
+    socket.on('friend_status_check', async (data) => {
+      await this.handleFriendStatusCheck(socket, data);
+    });
+
+    // Direct messaging events
+    socket.on('dm_sent', async (data) => {
+      await this.handleDirectMessage(socket, data);
+    });
+
+    socket.on('dm_read', async (data) => {
+      await this.handleDirectMessageRead(socket, data);
+    });
+
+    // Room moderation events
+    socket.on('user_kicked', async (data) => {
+      await this.handleUserKicked(socket, data);
+    });
+
+    socket.on('user_banned', async (data) => {
+      await this.handleUserBanned(socket, data);
+    });
+
+    socket.on('user_unbanned', async (data) => {
+      await this.handleUserUnbanned(socket, data);
     });
 
     // Disconnection handling
@@ -636,6 +677,9 @@ export class OptimizedSocketHandlers {
         userSockets.delete(socketId);
         if (userSockets.size === 0) {
           this.connectionPool.delete(userId);
+          
+          // User completely disconnected - notify friends
+          await this.notifyFriendsOfStatusChange(userId, 'offline');
         }
       }
 
@@ -654,6 +698,309 @@ export class OptimizedSocketHandlers {
 
     } catch (error) {
       logger.error('Disconnection handling error:', error);
+    }
+  }
+
+  /**
+   * Handle friend request sent - notify recipient
+   */
+  private async handleFriendRequestSent(socket: RateLimitedSocket, data: any): Promise<void> {
+    try {
+      const { recipientId, request } = data;
+      if (!recipientId || !request) return;
+
+      // Emit to all of recipient's active sockets
+      const recipientSockets = this.connectionPool.get(recipientId);
+      if (recipientSockets) {
+        for (const socketId of recipientSockets) {
+          this.io.to(socketId).emit('friend_request_received', {
+            request,
+            timestamp: new Date()
+          });
+        }
+        logger.debug(`Notified user ${recipientId} of friend request from ${socket.userId}`);
+      }
+    } catch (error) {
+      logger.error('Friend request sent handler error:', error);
+    }
+  }
+
+  /**
+   * Handle friend request accepted - notify both users
+   */
+  private async handleFriendRequestAccepted(socket: RateLimitedSocket, data: any): Promise<void> {
+    try {
+      const { requesterId, friendship, privateRoom } = data;
+      if (!requesterId || !friendship) return;
+
+      const userId = socket.userId!;
+
+      // Notify requester
+      const requesterSockets = this.connectionPool.get(requesterId);
+      if (requesterSockets) {
+        for (const socketId of requesterSockets) {
+          this.io.to(socketId).emit('friend_request_accepted', {
+            friendship,
+            privateRoom,
+            acceptedBy: userId,
+            timestamp: new Date()
+          });
+        }
+      }
+
+      // Notify accepter (current user)
+      socket.emit('friend_added', {
+        friendship,
+        privateRoom,
+        timestamp: new Date()
+      });
+
+      logger.debug(`Friend request accepted between ${userId} and ${requesterId}`);
+    } catch (error) {
+      logger.error('Friend request accepted handler error:', error);
+    }
+  }
+
+  /**
+   * Handle friend removed - notify both users
+   */
+  private async handleFriendRemoved(socket: RateLimitedSocket, data: any): Promise<void> {
+    try {
+      const { friendId } = data;
+      if (!friendId) return;
+
+      const userId = socket.userId!;
+
+      // Notify friend
+      const friendSockets = this.connectionPool.get(friendId);
+      if (friendSockets) {
+        for (const socketId of friendSockets) {
+          this.io.to(socketId).emit('friendship_ended', {
+            removedBy: userId,
+            timestamp: new Date()
+          });
+        }
+      }
+
+      logger.debug(`Friendship removed between ${userId} and ${friendId}`);
+    } catch (error) {
+      logger.error('Friend removed handler error:', error);
+    }
+  }
+
+  /**
+   * Handle friend status check - return online/offline status
+   */
+  private async handleFriendStatusCheck(socket: RateLimitedSocket, data: any): Promise<void> {
+    try {
+      const { friendIds } = data;
+      if (!Array.isArray(friendIds)) return;
+
+      const statuses = friendIds.map(friendId => ({
+        userId: friendId,
+        isOnline: this.connectionPool.has(friendId),
+        lastSeen: null // Could fetch from database if needed
+      }));
+
+      socket.emit('friend_statuses', { statuses });
+    } catch (error) {
+      logger.error('Friend status check handler error:', error);
+    }
+  }
+
+  /**
+   * Handle direct message - send to recipient
+   */
+  private async handleDirectMessage(socket: RateLimitedSocket, data: any): Promise<void> {
+    try {
+      const { recipientId, message, conversationId } = data;
+      if (!recipientId || !message) return;
+
+      const senderId = socket.userId!;
+
+      // Emit to all of recipient's active sockets
+      const recipientSockets = this.connectionPool.get(recipientId);
+      if (recipientSockets) {
+        for (const socketId of recipientSockets) {
+          this.io.to(socketId).emit('dm_received', {
+            message,
+            conversationId,
+            senderId,
+            timestamp: new Date()
+          });
+        }
+      }
+
+      // Confirm to sender
+      socket.emit('dm_delivered', {
+        messageId: message.id,
+        delivered: recipientSockets && recipientSockets.size > 0,
+        timestamp: new Date()
+      });
+
+      logger.debug(`Direct message from ${senderId} to ${recipientId}`);
+    } catch (error) {
+      logger.error('Direct message handler error:', error);
+    }
+  }
+
+  /**
+   * Handle direct message read - notify sender
+   */
+  private async handleDirectMessageRead(socket: RateLimitedSocket, data: any): Promise<void> {
+    try {
+      const { senderId, messageIds, conversationId } = data;
+      if (!senderId || !messageIds) return;
+
+      // Notify sender that messages were read
+      const senderSockets = this.connectionPool.get(senderId);
+      if (senderSockets) {
+        for (const socketId of senderSockets) {
+          this.io.to(socketId).emit('dm_read_receipt', {
+            messageIds,
+            conversationId,
+            readBy: socket.userId,
+            timestamp: new Date()
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Direct message read handler error:', error);
+    }
+  }
+
+  /**
+   * Handle user kicked from room - notify kicked user
+   */
+  private async handleUserKicked(socket: RateLimitedSocket, data: any): Promise<void> {
+    try {
+      const { roomId, kickedUserId, reason } = data;
+      if (!roomId || !kickedUserId) return;
+
+      // Force kicked user to leave room
+      const kickedSockets = this.connectionPool.get(kickedUserId);
+      if (kickedSockets) {
+        for (const socketId of kickedSockets) {
+          const kickedSocket = this.io.sockets.sockets.get(socketId);
+          if (kickedSocket) {
+            await kickedSocket.leave(roomId);
+            this.io.to(socketId).emit('kicked_from_room', {
+              roomId,
+              kickedBy: socket.userId,
+              reason,
+              timestamp: new Date()
+            });
+          }
+        }
+      }
+
+      // Notify remaining room members
+      this.io.to(roomId).emit('user_kicked_from_room', {
+        roomId,
+        kickedUserId,
+        kickedBy: socket.userId,
+        reason,
+        timestamp: new Date()
+      });
+
+      logger.debug(`User ${kickedUserId} kicked from room ${roomId} by ${socket.userId}`);
+    } catch (error) {
+      logger.error('User kicked handler error:', error);
+    }
+  }
+
+  /**
+   * Handle user banned from room - notify banned user
+   */
+  private async handleUserBanned(socket: RateLimitedSocket, data: any): Promise<void> {
+    try {
+      const { roomId, bannedUserId, reason, ban } = data;
+      if (!roomId || !bannedUserId) return;
+
+      // Force banned user to leave room
+      const bannedSockets = this.connectionPool.get(bannedUserId);
+      if (bannedSockets) {
+        for (const socketId of bannedSockets) {
+          const bannedSocket = this.io.sockets.sockets.get(socketId);
+          if (bannedSocket) {
+            await bannedSocket.leave(roomId);
+            this.io.to(socketId).emit('banned_from_room', {
+              roomId,
+              bannedBy: socket.userId,
+              reason,
+              ban,
+              timestamp: new Date()
+            });
+          }
+        }
+      }
+
+      // Notify remaining room members
+      this.io.to(roomId).emit('user_banned_from_room', {
+        roomId,
+        bannedUserId,
+        bannedBy: socket.userId,
+        reason,
+        timestamp: new Date()
+      });
+
+      logger.debug(`User ${bannedUserId} banned from room ${roomId} by ${socket.userId}`);
+    } catch (error) {
+      logger.error('User banned handler error:', error);
+    }
+  }
+
+  /**
+   * Handle user unbanned from room - notify unbanned user
+   */
+  private async handleUserUnbanned(socket: RateLimitedSocket, data: any): Promise<void> {
+    try {
+      const { roomId, unbannedUserId } = data;
+      if (!roomId || !unbannedUserId) return;
+
+      // Notify unbanned user
+      const unbannedSockets = this.connectionPool.get(unbannedUserId);
+      if (unbannedSockets) {
+        for (const socketId of unbannedSockets) {
+          this.io.to(socketId).emit('unbanned_from_room', {
+            roomId,
+            unbannedBy: socket.userId,
+            timestamp: new Date()
+          });
+        }
+      }
+
+      logger.debug(`User ${unbannedUserId} unbanned from room ${roomId} by ${socket.userId}`);
+    } catch (error) {
+      logger.error('User unbanned handler error:', error);
+    }
+  }
+
+  /**
+   * Notify friends when user status changes (online/offline)
+   */
+  private async notifyFriendsOfStatusChange(userId: string, status: 'online' | 'offline'): Promise<void> {
+    try {
+      // Get user's friends
+      const friends = await FriendService.getFriends(userId);
+      
+      // Notify each online friend
+      for (const friend of friends) {
+        const friendSockets = this.connectionPool.get(friend.id);
+        if (friendSockets) {
+          for (const socketId of friendSockets) {
+            this.io.to(socketId).emit('friend_status_changed', {
+              userId,
+              status,
+              timestamp: new Date()
+            });
+          }
+        }
+      }
+
+      logger.debug(`Notified friends of ${userId} status change to ${status}`);
+    } catch (error) {
+      logger.error('Notify friends of status change error:', error);
     }
   }
 

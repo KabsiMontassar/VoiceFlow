@@ -322,6 +322,171 @@ class ApiClient {
     return response.data as ApiResponse;
   }
 
+  // ====================
+  // FRIENDS API
+  // ====================
+  
+  /**
+   * Send friend request by friend code
+   */
+  async sendFriendRequest(friendCode: string) {
+    const response = await this.client.post('/api/friends/request', { friendCode });
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Get pending friend requests (received)
+   */
+  async getPendingFriendRequests() {
+    const response = await this.client.get('/api/friends/requests/pending');
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Get sent friend requests
+   */
+  async getSentFriendRequests() {
+    const response = await this.client.get('/api/friends/requests/sent');
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Accept friend request
+   */
+  async acceptFriendRequest(requestId: string) {
+    const response = await this.client.post(`/api/friends/requests/${requestId}/accept`);
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Reject friend request
+   */
+  async rejectFriendRequest(requestId: string) {
+    const response = await this.client.post(`/api/friends/requests/${requestId}/reject`);
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Cancel sent friend request
+   */
+  async cancelFriendRequest(requestId: string) {
+    const response = await this.client.delete(`/api/friends/requests/${requestId}`);
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Get friends list with online status
+   */
+  async getFriends() {
+    const response = await this.client.get('/api/friends');
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Remove friend
+   */
+  async removeFriend(friendId: string) {
+    const response = await this.client.delete(`/api/friends/${friendId}`);
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Get friend count
+   */
+  async getFriendCount() {
+    const response = await this.client.get('/api/friends/count');
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Check if users are friends
+   */
+  async checkFriendship(friendId: string) {
+    const response = await this.client.get(`/api/friends/check/${friendId}`);
+    return response.data as ApiResponse;
+  }
+
+  // ====================
+  // PROFILE API
+  // ====================
+
+  /**
+   * Get current user profile
+   */
+  async getMyProfile() {
+    const response = await this.client.get('/api/users/me');
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Update profile (username, age, country, gender)
+   */
+  async updateMyProfile(data: {
+    username?: string;
+    age?: number;
+    country?: string;
+    gender?: 'male' | 'female' | null;
+    avatarUrl?: string;
+  }) {
+    const response = await this.client.patch('/api/users/me', data);
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Change password
+   */
+  async changePassword(currentPassword: string, newPassword: string) {
+    const response = await this.client.post('/api/users/me/password', {
+      currentPassword,
+      newPassword
+    });
+    return response.data as ApiResponse;
+  }
+
+  // ====================
+  // ROOM MODERATION API
+  // ====================
+
+  /**
+   * Join room by code
+   */
+  async joinRoomByCode(code: string) {
+    const response = await this.client.post(`/api/rooms/join/${code}`);
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Kick user from room
+   */
+  async kickUserFromRoom(roomId: string, userId: string, reason?: string) {
+    const response = await this.client.post(`/api/rooms/${roomId}/kick/${userId}`, { reason });
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Ban user from room
+   */
+  async banUserFromRoom(roomId: string, userId: string, reason?: string) {
+    const response = await this.client.post(`/api/rooms/${roomId}/ban/${userId}`, { reason });
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Unban user from room
+   */
+  async unbanUserFromRoom(roomId: string, userId: string) {
+    const response = await this.client.delete(`/api/rooms/${roomId}/ban/${userId}`);
+    return response.data as ApiResponse;
+  }
+
+  /**
+   * Get room bans
+   */
+  async getRoomBans(roomId: string) {
+    const response = await this.client.get(`/api/rooms/${roomId}/bans`);
+    return response.data as ApiResponse;
+  }
+
   // Generic methods
   get<T>(url: string, config?: any) {
     return this.client.get<T>(url, config);

@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize';
 import config from '../config/index';
 import { initializeModels } from '../models/index';
+import { runMigrations } from './migrations';
 
 let sequelize: Sequelize | null = null;
 
@@ -27,11 +28,13 @@ export const initializeDatabase = async (): Promise<Sequelize> => {
     // Initialize all models
     initializeModels(sequelize);
 
-    // Sync models with database
-    if (config.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      console.log('Database models synchronized');
-    }
+    // First, sync models to create tables if they don't exist
+    await sequelize.sync({ force: false, alter: false });
+    console.log('Database models synchronized');
+
+    // Then run migrations to modify existing tables
+    await runMigrations(sequelize);
+    console.log('Database migrations completed');
 
     return sequelize;
   } catch (error) {

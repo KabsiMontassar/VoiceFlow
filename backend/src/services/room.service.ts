@@ -2,10 +2,11 @@
  * Room Service - Handles room management logic
  */
 
-import { RoomModel, RoomUserModel, UserModel, MessageModel } from '../models/index';
-import { Room, RoomWithParticipants, ERROR_CODES, User, RoomUser } from '../../../shared/src';
+import { RoomModel, RoomUserModel, UserModel, MessageModel, RoomBanModel } from '../models/index';
+import { Room, RoomWithParticipants, ERROR_CODES, User, RoomUser, RoomBan } from '../../../shared/src';
 import { AppError } from '../utils/responses';
-import { generateRoomCode, generateUUID } from '../../../shared/src/utils';
+import { generateUUID } from '../../../shared/src/utils';
+import { generateRoomCode, isValidRoomCode, sanitizeRoomCode } from '../utils/codeGenerator';
 
 export class RoomService {
   /**
@@ -322,6 +323,219 @@ export class RoomService {
     // Delete all room data (messages, members, etc)
     await MessageModel.destroy({ where: { roomId } });
     await RoomUserModel.destroy({ where: { roomId } });
+  }
+
+  /**
+   * Join room by code with ban checking
+   */
+  async joinRoomByCode(code: string, userId: string): Promise<Room> {
+    // Sanitize and validate code
+    const sanitizedCode = sanitizeRoomCode(code);
+    
+    if (!isValidRoomCode(sanitizedCode)) {
+      throw new AppError('Invalid room code format', 400, ERROR_CODES.INVALID_ROOM_CODE);
+    }
+
+    const room = await RoomModel.findOne({
+      where: { code: sanitizedCode },
+    });
+
+    if (!room) {
+      throw new AppError('Room not found with this code', 404, ERROR_CODES.INVALID_ROOM_CODE);
+    }
+
+    if (!room.isActive) {
+      throw new AppError('Room is no longer active', 404, ERROR_CODES.ROOM_NOT_FOUND);
+    }
+
+    // Check if user is banned
+    const isBanned = await this.isUserBanned(room.id, userId);
+    if (isBanned) {
+      throw new AppError('You are banned from this room', 403, ERROR_CODES.PERMISSION_DENIED);
+    }
+
+    // Join the room
+    await this.joinRoom(room.id, userId);
+
+    return room.toJSON();
+  }
+
+  /**
+   * Kick user from room (temporary, can rejoin with code)
+   */
+  async kickUserFromRoom(roomId: string, userId: string, kickedBy: string): Promise<void> {
+    const room = await RoomModel.findByPk(roomId);
+
+    if (!room) {
+      throw new AppError('Room not found', 404, ERROR_CODES.ROOM_NOT_FOUND);
+    }
+
+    // Check if private 1:1 room
+    const memberCount = await RoomUserModel.count({ where: { roomId } });
+    if (memberCount === 2 && room.maxUsers === 2) {
+      throw new AppError('Cannot kick from private 1:1 room. Remove friend instead.', 400, ERROR_CODES.PERMISSION_DENIED);
+    }
+
+    // Check if kicker is admin
+    const kickerMembership = await RoomUserModel.findOne({
+      where: { roomId, userId: kickedBy },
+    });
+
+    if (!kickerMembership || kickerMembership.role !== 'admin') {
+      throw new AppError('Only admins can kick users', 403, ERROR_CODES.PERMISSION_DENIED);
+    }
+
+    // Cannot kick room creator
+    if (userId === room.createdById) {
+      throw new AppError('Cannot kick room creator', 400, ERROR_CODES.PERMISSION_DENIED);
+    }
+
+    // Check if user is in room
+    const userMembership = await RoomUserModel.findOne({
+      where: { roomId, userId },
+    });
+
+    if (!userMembership) {
+      throw new AppError('User is not in this room', 400, ERROR_CODES.USER_NOT_FOUND);
+    }
+
+    // Remove user from room
+    await this.leaveRoom(roomId, userId);
+  }
+
+  /**
+   * Ban user from room (permanent, cannot rejoin)
+   */
+  async banUserFromRoom(
+    roomId: string,
+    userId: string,
+    bannedBy: string,
+    reason?: string
+  ): Promise<RoomBan> {
+    const room = await RoomModel.findByPk(roomId);
+
+    if (!room) {
+      throw new AppError('Room not found', 404, ERROR_CODES.ROOM_NOT_FOUND);
+    }
+
+    // Check if private 1:1 room
+    const memberCount = await RoomUserModel.count({ where: { roomId } });
+    if (memberCount === 2 && room.maxUsers === 2) {
+      throw new AppError('Cannot ban from private 1:1 room. Remove friend instead.', 400, ERROR_CODES.PERMISSION_DENIED);
+    }
+
+    // Check if banner is admin
+    const bannerMembership = await RoomUserModel.findOne({
+      where: { roomId, userId: bannedBy },
+    });
+
+    if (!bannerMembership || bannerMembership.role !== 'admin') {
+      throw new AppError('Only admins can ban users', 403, ERROR_CODES.PERMISSION_DENIED);
+    }
+
+    // Cannot ban room creator
+    if (userId === room.createdById) {
+      throw new AppError('Cannot ban room creator', 400, ERROR_CODES.PERMISSION_DENIED);
+    }
+
+    // Check if already banned
+    const existingBan = await RoomBanModel.findOne({
+      where: { roomId, userId },
+    });
+
+    if (existingBan) {
+      throw new AppError('User is already banned from this room', 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+
+    // Create ban record
+    const ban = await RoomBanModel.create({
+      id: generateUUID(),
+      roomId,
+      userId,
+      bannedBy,
+      reason: reason || null,
+      createdAt: new Date(),
+    });
+
+    // Remove user from room if they're in it
+    const userMembership = await RoomUserModel.findOne({
+      where: { roomId, userId },
+    });
+
+    if (userMembership) {
+      await RoomUserModel.destroy({
+        where: { roomId, userId },
+      });
+    }
+
+    return ban.toJSON() as RoomBan;
+  }
+
+  /**
+   * Unban user from room
+   */
+  async unbanUser(roomId: string, userId: string, unbannedBy: string): Promise<void> {
+    const room = await RoomModel.findByPk(roomId);
+
+    if (!room) {
+      throw new AppError('Room not found', 404, ERROR_CODES.ROOM_NOT_FOUND);
+    }
+
+    // Check if unbanner is admin
+    const unbannerMembership = await RoomUserModel.findOne({
+      where: { roomId, userId: unbannedBy },
+    });
+
+    if (!unbannerMembership || unbannerMembership.role !== 'admin') {
+      throw new AppError('Only admins can unban users', 403, ERROR_CODES.PERMISSION_DENIED);
+    }
+
+    // Check if user is banned
+    const ban = await RoomBanModel.findOne({
+      where: { roomId, userId },
+    });
+
+    if (!ban) {
+      throw new AppError('User is not banned from this room', 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+
+    // Remove ban
+    await ban.destroy();
+  }
+
+  /**
+   * Check if user is banned from room
+   */
+  async isUserBanned(roomId: string, userId: string): Promise<boolean> {
+    const ban = await RoomBanModel.findOne({
+      where: { roomId, userId },
+    });
+
+    return !!ban;
+  }
+
+  /**
+   * Get all bans for a room
+   */
+  async getRoomBans(roomId: string): Promise<RoomBan[]> {
+    const bans = await RoomBanModel.findAll({
+      where: { roomId },
+      include: [
+        {
+          model: UserModel,
+          as: 'bannedUser',
+          attributes: { exclude: ['passwordHash'] },
+        },
+        {
+          model: UserModel,
+          as: 'banner',
+          attributes: { exclude: ['passwordHash'] },
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+
+    return bans.map(b => b.toJSON() as RoomBan);
   }
 }
 

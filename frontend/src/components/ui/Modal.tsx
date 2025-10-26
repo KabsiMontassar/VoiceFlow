@@ -4,7 +4,7 @@ import type { FunctionComponent } from '../../common/types';
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
+  title?: string | React.ReactNode;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }
@@ -39,7 +39,11 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps): F
       >
         {title && (
           <div className="flex items-center justify-between p-6 border-b border-subtle">
-            <h2 className="text-xl font-bold text-primary-text font-primary">{title}</h2>
+            {typeof title === 'string' ? (
+              <h2 className="text-xl font-bold text-primary-text font-primary">{title}</h2>
+            ) : (
+              <div className="flex-1">{title}</div>
+            )}
             <button
               onClick={onClose}
               className="text-muted hover:text-primary-text hover:bg-background-secondary p-2 rounded-lg transition-all"

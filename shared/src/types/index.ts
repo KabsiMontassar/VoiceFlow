@@ -5,6 +5,11 @@ export interface User {
   email: string;
   avatarUrl: string | null;
   status: UserPresenceStatus;
+  friendCode: string;
+  age: number | null;
+  country: string | null;
+  gender: 'male' | 'female' | null;
+  lastSeen: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +20,54 @@ export interface AuthPayload {
   userId: string;
   email: string;
   username: string;
+}
+
+// Friend Types
+export interface FriendRequest {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+  createdAt: Date;
+  updatedAt: Date;
+  sender?: User;
+  receiver?: User;
+}
+
+export interface Friendship {
+  id: string;
+  user1Id: string;
+  user2Id: string;
+  roomId: string | null;
+  createdAt: Date;
+  friend?: User; // The other user in the friendship
+  privateRoom?: Room;
+}
+
+export interface FriendWithStatus extends User {
+  friendshipId: string;
+  isOnline: boolean;
+  privateRoomId: string | null;
+}
+
+// Direct Message Types
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  isRead: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  sender?: User;
+  receiver?: User;
+}
+
+export interface DMConversation {
+  friendId: string;
+  friend: User;
+  lastMessage: DirectMessage | null;
+  unreadCount: number;
 }
 
 // Room Types
@@ -29,6 +82,7 @@ export interface Room {
   createdAt: Date;
   lastActivity: Date;
   isActive: boolean;
+  isPrivate?: boolean; // True for 1:1 friend rooms
 }
 
 export interface RoomSettings {
@@ -49,6 +103,17 @@ export interface RoomUser {
 export interface RoomWithParticipants extends Room {
   participants: (RoomUser & { user: User })[];
   participantCount: number;
+}
+
+export interface RoomBan {
+  id: string;
+  roomId: string;
+  userId: string;
+  bannedBy: string;
+  reason: string | null;
+  createdAt: Date;
+  bannedUser?: User;
+  banner?: User;
 }
 
 // Message Types

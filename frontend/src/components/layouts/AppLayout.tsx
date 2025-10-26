@@ -48,24 +48,24 @@ export function AppLayout() {
       {/* Professional Sidebar */}
       <div className={`
         ${isCollapsed ? 'w-16' : 'w-80'} 
-        bg-neutral-950 
+        bg-background-secondary
         flex flex-col 
         transition-all duration-300 ease-in-out
-        border-r border-neutral-800
+        border-r border-default
       `}>
         {/* Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-neutral-800">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-subtle">
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20">
-                <MessageSquare className="w-5 h-5 text-neutral-950" />
+              <div className="w-8 h-8 bg-gradient-to-br from-primary/80 to-secondary rounded-lg flex items-center justify-center shadow-sm">
+                <MessageSquare className="w-5 h-5 text-black" />
               </div>
-              <span className="text-white font-medium text-lg">VoiceFlow</span>
+              <span className="text-primary-text font-primary font-bold text-lg">VoiceFlow</span>
             </div>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
+            className="p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-primary-text transition-colors"
           >
             {isCollapsed ? <Menu className="w-5 h-5" /> : <X className="w-5 h-5" />}
           </button>
@@ -76,32 +76,32 @@ export function AppLayout() {
           {!isCollapsed && (
             <>
               {/* Search */}
-              <div className="p-4 border-b border-neutral-800">
+              <div className="p-4 border-b border-subtle">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-text" />
                   <input
                     type="text"
                     placeholder="Search rooms..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-600 transition-colors"
+                    className="w-full pl-10 pr-4 py-2 bg-background-tertiary border border-default rounded-lg text-primary-text placeholder-muted-text focus:outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(204,255,0,0.1)] transition-all font-primary text-sm"
                   />
                 </div>
               </div>
 
               {/* Quick Actions */}
-              <div className="p-4 border-b border-neutral-800">
+              <div className="p-4 border-b border-subtle">
                 <div className="space-y-2">
                   <button
                     onClick={() => navigate({ to: '/dashboard' })}
-                    className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors"
+                    className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-primary-text transition-colors font-primary"
                   >
                     <Home className="w-5 h-5" />
                     <span>Dashboard</span>
                   </button>
                   <button
                     onClick={handleCreateRoom}
-                    className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors"
+                    className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors font-primary font-medium"
                   >
                     <Plus className="w-5 h-5" />
                     <span>Create Room</span>
@@ -116,7 +116,7 @@ export function AppLayout() {
             {!isCollapsed && (
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-neutral-400 text-sm font-medium uppercase tracking-wide">
+                  <span className="text-secondary-text text-sm font-primary font-medium uppercase tracking-wide">
                     Rooms ({filteredRooms.length})
                   </span>
                 </div>
@@ -130,17 +130,17 @@ export function AppLayout() {
                   onClick={() => handleRoomClick(room.id)}
                   className={`
                     w-full flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors group
-                    text-neutral-400 hover:bg-neutral-800 hover:text-white
+                    text-secondary-text hover:bg-background-tertiary hover:text-primary-text
                   `}
                   title={isCollapsed ? room.name : undefined}
                 >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-neutral-700 text-neutral-300 group-hover:bg-neutral-600">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-background-tertiary text-muted-text group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                     <Hash className="w-4 h-4" />
                   </div>
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{room.name}</div>
-                      <div className="text-xs text-neutral-500 truncate">
+                      <div className="font-primary font-medium truncate">{room.name}</div>
+                      <div className="text-xs text-muted-text truncate font-primary">
                         #{room.code}
                       </div>
                     </div>
@@ -151,7 +151,7 @@ export function AppLayout() {
 
             {isCollapsed && rooms.length > 6 && (
               <div className="px-2 mt-2">
-                <div className="text-center text-neutral-500 text-xs">
+                <div className="text-center text-muted-text text-xs font-primary">
                   +{rooms.length - 6} more
                 </div>
               </div>
@@ -160,33 +160,33 @@ export function AppLayout() {
         </div>
 
         {/* User Profile */}
-        <div className="border-t border-neutral-800 p-4">
+        <div className="border-t border-subtle p-4">
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'}`}>
             {!isCollapsed && (
               <>
-                <div className="w-10 h-10 bg-neutral-700 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-neutral-300" />
+                <div className="w-10 h-10 bg-gradient-to-br from-primary/80 to-secondary rounded-full flex items-center justify-center shadow-sm">
+                  <User className="w-5 h-5 text-black" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-white font-medium truncate">{user?.username}</div>
-                  <div className="text-neutral-400 text-sm truncate">{user?.email}</div>
+                  <div className="text-primary-text font-primary font-medium truncate">{user?.username}</div>
+                  <div className="text-secondary-text text-sm truncate font-primary">{user?.email}</div>
                 </div>
                 <div className="flex space-x-1">
                   <button
-                    className="p-2 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
+                    className="p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-primary transition-colors"
                     title="Notifications"
                   >
                     <Bell className="w-4 h-4" />
                   </button>
                   <button
-                    className="p-2 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
+                    className="p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-primary transition-colors"
                     title="Settings"
                   >
                     <Settings className="w-4 h-4" />
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="p-2 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-red-400 transition-colors"
+                    className="p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-error transition-colors"
                     title="Logout"
                   >
                     <LogOut className="w-4 h-4" />
@@ -197,7 +197,7 @@ export function AppLayout() {
             {isCollapsed && (
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-red-400 transition-colors"
+                className="p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-error transition-colors"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />

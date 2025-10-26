@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { RoomService } from '../services/room.service';
-import { AppError } from '../utils/responses';
+import { AppError, successResponse, errorResponse } from '../utils/responses';
 import {
   CreateRoomSchema,
   UpdateRoomSchema,
@@ -8,7 +8,7 @@ import {
   ERROR_CODES,
 } from '../../../shared/src';
 
-type AuthRequest = Request & { userId?: string };
+type AuthRequest = Request & { userId?: string; user?: { userId: string } };
 
 export class RoomController {
   private roomService: RoomService;
@@ -320,6 +320,140 @@ export class RoomController {
         success: true,
         data: members,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Join room by code
+   * POST /api/rooms/join/:code
+   */
+  joinRoomByCode = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+      }
+
+      const { code } = req.params;
+
+      const room = await this.roomService.joinRoomByCode(code, userId);
+
+      res.status(200).json(successResponse(room, 'Joined room successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Kick user from room
+   * POST /api/rooms/:roomId/kick/:userId
+   */
+  kickUser = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const kickedBy = (req as any).user?.userId;
+      if (!kickedBy) {
+        throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+      }
+
+      const { roomId, userId } = req.params;
+
+      await this.roomService.kickUserFromRoom(roomId, userId, kickedBy);
+
+      res.status(200).json(successResponse(null, 'User kicked from room'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Ban user from room
+   * POST /api/rooms/:roomId/ban/:userId
+   */
+  banUser = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const bannedBy = (req as any).user?.userId;
+      if (!bannedBy) {
+        throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+      }
+
+      const { roomId, userId } = req.params;
+      const { reason } = req.body;
+
+      const ban = await this.roomService.banUserFromRoom(roomId, userId, bannedBy, reason);
+
+      res.status(200).json(successResponse(ban, 'User banned from room'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Unban user from room
+   * DELETE /api/rooms/:roomId/ban/:userId
+   */
+  unbanUser = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const unbannedBy = (req as any).user?.userId;
+      if (!unbannedBy) {
+        throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+      }
+
+      const { roomId, userId } = req.params;
+
+      await this.roomService.unbanUser(roomId, userId, unbannedBy);
+
+      res.status(200).json(successResponse(null, 'User unbanned from room'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get room bans
+   * GET /api/rooms/:roomId/bans
+   */
+  getRoomBans = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+      }
+
+      const { roomId } = req.params;
+
+      // Verify user is admin
+      const membership = await this.roomService.getRoomMembers(roomId);
+      const userMembership = (membership as any[]).find((m: any) => m.userId === userId);
+      
+      if (!userMembership || userMembership.role !== 'admin') {
+        throw new AppError('Only admins can view bans', 403, ERROR_CODES.PERMISSION_DENIED);
+      }
+
+      const bans = await this.roomService.getRoomBans(roomId);
+
+      res.status(200).json(successResponse(bans));
     } catch (error) {
       next(error);
     }

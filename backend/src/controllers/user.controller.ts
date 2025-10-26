@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
-import { AppError } from '../utils/responses';
+import { UserService } from '../services/user.service';
+import { AppError, successResponse, errorResponse } from '../utils/responses';
+import logger from '../utils/logger';
 
-type AuthRequest = Request & { userId?: string };
+type AuthRequest = Request & { userId?: string; user?: { userId: string } };
 
 export class UserController {
   private authService: AuthService;
@@ -13,7 +15,7 @@ export class UserController {
 
   /**
    * Get user profile
-   * GET /api/v1/users/:userId
+   * GET /api/users/:userId
    */
   getUserProfile = async (
     req: Request,
@@ -22,27 +24,39 @@ export class UserController {
   ): Promise<void> => {
     try {
       const { userId } = req.params;
+      const user = await UserService.getUserById(userId);
 
-      const user = await this.authService.getUserById(userId);
-
-      res.status(200).json({
-        success: true,
-        data: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          avatarUrl: user.avatarUrl,
-          createdAt: user.createdAt,
-        },
-      });
+      res.status(200).json(successResponse(user));
     } catch (error) {
       next(error);
     }
   };
 
   /**
-   * Update user profile (current user)
-   * PUT /api/v1/users/me
+   * Get current user profile
+   * GET /api/users/me
+   */
+  getMyProfile = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = (req as any).user.userId;
+      if (!userId) {
+        throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+      }
+
+      const user = await UserService.getUserById(userId);
+      res.status(200).json(successResponse(user));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Update user profile
+   * PATCH /api/users/me
    */
   updateProfile = async (
     req: AuthRequest,
@@ -50,30 +64,55 @@ export class UserController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const userId = req.userId;
+      const userId = (req as any).user.userId;
       if (!userId) {
         throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
       }
 
-      const { username, avatarUrl } = req.body;
+      const { username, age, country, gender, avatarUrl } = req.body;
 
-      if (!username && !avatarUrl) {
+      const user = await UserService.updateProfile(userId, {
+        username,
+        age,
+        country,
+        gender,
+        avatarUrl,
+      });
+
+      res.status(200).json(successResponse(user, 'Profile updated successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Change password
+   * POST /api/users/me/password
+   */
+  changePassword = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = (req as any).user.userId;
+      if (!userId) {
+        throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
         throw new AppError(
-          'At least one field is required',
+          'Current password and new password are required',
           400,
           'VALIDATION_ERROR'
         );
       }
 
-      // TODO: Implement user update service method
-      // For now, just return success
-      const user = await this.authService.getUserById(userId);
+      await UserService.changePassword(userId, currentPassword, newPassword);
 
-      res.status(200).json({
-        success: true,
-        message: 'Profile updated successfully',
-        data: user,
-      });
+      res.status(200).json(successResponse(null, 'Password changed successfully'));
     } catch (error) {
       next(error);
     }
@@ -81,7 +120,7 @@ export class UserController {
 
   /**
    * Search users
-   * GET /api/v1/users/search
+   * GET /api/users/search
    */
   searchUsers = async (
     req: Request,
@@ -99,12 +138,9 @@ export class UserController {
         );
       }
 
-      // TODO: Implement user search service method
-      // For now, return empty array
-      res.status(200).json({
-        success: true,
-        data: [],
-      });
+      const users = await UserService.searchUsers(query);
+
+      res.status(200).json(successResponse(users));
     } catch (error) {
       next(error);
     }

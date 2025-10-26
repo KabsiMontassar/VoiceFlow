@@ -214,7 +214,96 @@ export class SocketClient {
     });
 
     this.socket.on('user_left_room', (data) => {
-      console.debug('[Socket] User left room:', data);
+      console.log('[Socket] User left room:', data);
+    });
+
+    // Friend system events
+    this.socket.on('friend_request_received', (data) => {
+      console.log('[Socket] Friend request received:', data);
+      // Reload pending requests to show new request
+      import('../stores/friendStore').then(({ useFriendStore }) => {
+        useFriendStore.getState().loadPendingRequests();
+      });
+    });
+
+    this.socket.on('friend_request_accepted', (data) => {
+      console.log('[Socket] Friend request accepted:', data);
+      // Reload friends list and sent requests
+      import('../stores/friendStore').then(({ useFriendStore }) => {
+        useFriendStore.getState().loadFriends();
+        useFriendStore.getState().loadSentRequests();
+      });
+    });
+
+    this.socket.on('friendship_ended', (data) => {
+      console.log('[Socket] Friendship ended:', data);
+      // Reload friends list
+      import('../stores/friendStore').then(({ useFriendStore }) => {
+        useFriendStore.getState().loadFriends();
+      });
+    });
+
+    this.socket.on('friend_status_changed', (data) => {
+      console.log('[Socket] Friend status changed:', data);
+      // Update friend online status
+      import('../stores/friendStore').then(({ useFriendStore }) => {
+        useFriendStore.getState().updateFriendStatus(data.userId, data.status === 'online');
+      });
+    });
+
+    // Direct messaging events
+    this.socket.on('dm_received', (data) => {
+      console.log('[Socket] Direct message received:', data);
+      // Add message to DM store and increment unread count
+      import('../stores/dmStore').then(({ useDMStore }) => {
+        const store = useDMStore.getState();
+        store.addMessage(data.senderId, data.message);
+        if (store.activeConversation !== data.senderId) {
+          store.incrementUnreadCount(data.senderId);
+        }
+      });
+    });
+
+    this.socket.on('dm_delivered', (data) => {
+      console.log('[Socket] Direct message delivered:', data);
+    });
+
+    this.socket.on('dm_read_receipt', (data) => {
+      console.log('[Socket] DM read receipt:', data);
+      // Mark messages as read in DM store
+      import('../stores/dmStore').then(({ useDMStore }) => {
+        useDMStore.getState().markAsRead(data.readBy, data.messageIds);
+      });
+    });
+
+    // Room moderation events
+    this.socket.on('kicked_from_room', (data) => {
+      console.warn('[Socket] You were kicked from room:', data);
+      // Show notification and navigate away
+      alert(`You were kicked from the room${data.reason ? `: ${data.reason}` : ''}`);
+      window.location.href = '/dashboard';
+    });
+
+    this.socket.on('banned_from_room', (data) => {
+      console.warn('[Socket] You were banned from room:', data);
+      // Show notification and navigate away
+      alert(`You were banned from the room${data.reason ? `: ${data.reason}` : ''}`);
+      window.location.href = '/dashboard';
+    });
+
+    this.socket.on('unbanned_from_room', (data) => {
+      console.log('[Socket] You were unbanned from room:', data);
+      alert('You have been unbanned from the room');
+    });
+
+    this.socket.on('user_kicked_from_room', (data) => {
+      console.log('[Socket] User kicked from room:', data);
+      // Update room member list if in room store
+    });
+
+    this.socket.on('user_banned_from_room', (data) => {
+      console.log('[Socket] User banned from room:', data);
+      // Update room member list if in room store
     });
 
     // Session management events

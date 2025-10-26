@@ -65,3 +65,33 @@ export const socketSendError = (
     details,
   };
 };
+
+/**
+ * Helper function to create success response
+ */
+export const successResponse = <T>(data: T, message?: string): ApiResponse<T> => {
+  return {
+    success: true,
+    data,
+    timestamp: Date.now(),
+  };
+};
+
+/**
+ * Helper function to create error response
+ */
+export const errorResponse = (
+  message: string,
+  code: string = 'ERROR',
+  details?: Record<string, unknown>,
+): ApiResponse<never> => {
+  return {
+    success: false,
+    error: {
+      code,
+      message,
+      details,
+    },
+    timestamp: Date.now(),
+  };
+};

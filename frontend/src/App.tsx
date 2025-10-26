@@ -4,6 +4,7 @@ import type { FunctionComponent } from "./common/types";
 import type { TanstackRouter } from "./main";
 import { useSocketAuth } from "./hooks/useSocketAuth";
 import { useRoomsSync } from "./hooks/useRoomsSync";
+import ToastContainer from "./components/ui/ToastContainer";
 
 const queryClient = new QueryClient();
 
@@ -20,7 +21,12 @@ const AppContent = ({ router }: AppProps): FunctionComponent => {
 	// Auth initialization is handled by Zustand's onRehydrateStorage callback
 	// No need to call it again here
 
-	return <RouterProvider router={router} />;
+	return (
+		<>
+			<RouterProvider router={router} />
+			<ToastContainer />
+		</>
+	);
 };
 
 const App = ({ router }: AppProps): FunctionComponent => {

@@ -38,4 +38,19 @@ router.post('/:roomId/leave', roomController.leaveRoom);
 // Get room members
 router.get('/:roomId/members', roomController.getRoomMembers);
 
+// Join room by code
+router.post('/join/:code', roomController.joinRoomByCode);
+
+// Kick user from room
+router.post('/:roomId/kick/:userId', roomController.kickUser);
+
+// Ban user from room
+router.post('/:roomId/ban/:userId', roomController.banUser);
+
+// Unban user from room
+router.delete('/:roomId/ban/:userId', roomController.unbanUser);
+
+// Get room bans
+router.get('/:roomId/bans', roomController.getRoomBans);
+
 export default router;

@@ -10,18 +10,24 @@ const userController = new UserController();
  * Public routes
  */
 
-// Get user profile by ID
-router.get('/:userId', userController.getUserProfile);
-
 // Search users
 router.get('/search', userController.searchUsers);
+
+// Get user profile by ID
+router.get('/:userId', userController.getUserProfile);
 
 /**
  * Protected routes - require authentication
  */
 router.use(authMiddleware);
 
+// Get current user profile
+router.get('/me', userController.getMyProfile);
+
 // Update current user profile
-router.put('/me', userController.updateProfile);
+router.patch('/me', userController.updateProfile);
+
+// Change password
+router.post('/me/password', userController.changePassword);
 
 export default router;
