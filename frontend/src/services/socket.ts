@@ -235,6 +235,14 @@ export class SocketClient {
       });
     });
 
+    this.socket.on('friend_added', (data) => {
+      console.log('[Socket] Friend added:', data);
+      // Reload friends list when someone accepts your request
+      import('../stores/friendStore').then(({ useFriendStore }) => {
+        useFriendStore.getState().loadFriends();
+      });
+    });
+
     this.socket.on('friendship_ended', (data) => {
       console.log('[Socket] Friendship ended:', data);
       // Reload friends list
@@ -251,30 +259,7 @@ export class SocketClient {
       });
     });
 
-    // Direct messaging events
-    this.socket.on('dm_received', (data) => {
-      console.log('[Socket] Direct message received:', data);
-      // Add message to DM store and increment unread count
-      import('../stores/dmStore').then(({ useDMStore }) => {
-        const store = useDMStore.getState();
-        store.addMessage(data.senderId, data.message);
-        if (store.activeConversation !== data.senderId) {
-          store.incrementUnreadCount(data.senderId);
-        }
-      });
-    });
-
-    this.socket.on('dm_delivered', (data) => {
-      console.log('[Socket] Direct message delivered:', data);
-    });
-
-    this.socket.on('dm_read_receipt', (data) => {
-      console.log('[Socket] DM read receipt:', data);
-      // Mark messages as read in DM store
-      import('../stores/dmStore').then(({ useDMStore }) => {
-        useDMStore.getState().markAsRead(data.readBy, data.messageIds);
-      });
-    });
+    // Direct messaging removed - users must create rooms to communicate
 
     // Room moderation events
     this.socket.on('kicked_from_room', (data) => {
@@ -344,7 +329,7 @@ export class SocketClient {
       if (this.socket && this.socket.connected) {
         this.socket.emit('heartbeat', { timestamp: Date.now() });
       }
-    }, 30000); // Every 30 seconds
+    }, 25000); // Every 25 seconds - optimized to match server ping interval
   }
 
   /**

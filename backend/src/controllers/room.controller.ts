@@ -61,6 +61,17 @@ export class RoomController {
       );
 
       console.log('Room created successfully:', room);
+      
+      // Emit socket event to notify the creator
+      const io = (req.app as any).get('io');
+      if (io) {
+        io.emit('room_created', {
+          room,
+          createdBy: userId,
+          timestamp: new Date()
+        });
+      }
+
       res.status(201).json({
         success: true,
         message: 'Room created successfully',
@@ -343,6 +354,17 @@ export class RoomController {
       const { code } = req.params;
 
       const room = await this.roomService.joinRoomByCode(code, userId);
+
+      // Emit socket event to notify ALL connected clients (will be filtered on client side)
+      const io = (req.app as any).get('io');
+      if (io) {
+        // Emit to all clients - the useRoomsSync hook will handle this for the joining user
+        io.emit('user_joined_room', {
+          room,
+          userId,
+          timestamp: new Date()
+        });
+      }
 
       res.status(200).json(successResponse(room, 'Joined room successfully'));
     } catch (error) {

@@ -20,6 +20,9 @@ router.get('/', roomController.listUserRooms);
 // Get room by code (before :roomId to avoid conflicts)
 router.get('/code/:code', roomController.getRoomByCode);
 
+// Join room by code (MUST be before /:roomId routes to avoid conflicts)
+router.post('/join/:code', roomController.joinRoomByCode);
+
 // Get room by ID
 router.get('/:roomId', roomController.getRoom);
 
@@ -37,9 +40,6 @@ router.post('/:roomId/leave', roomController.leaveRoom);
 
 // Get room members
 router.get('/:roomId/members', roomController.getRoomMembers);
-
-// Join room by code
-router.post('/join/:code', roomController.joinRoomByCode);
 
 // Kick user from room
 router.post('/:roomId/kick/:userId', roomController.kickUser);

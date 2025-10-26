@@ -41,20 +41,20 @@ export class OptimizedSocketHandlers {
   private roomPresenceHeartbeatIntervals = new Map<string, NodeJS.Timeout>(); // roomId -> interval
   private lastBroadcastedPresence = new Map<string, string>(); // roomId -> JSON stringified presence for change detection
   
-  // Rate limiting configuration
+  // Rate limiting configuration - Optimized for real-time feel
   private readonly RATE_LIMITS = {
-    messages: { max: 30, window: 60000 },  // 30 messages per minute
-    typing: { max: 60, window: 60000 },    // 60 typing events per minute
-    join: { max: 20, window: 60000 },      // 20 room joins per minute (increased for page refreshes)
-    connect: { max: 5, window: 60000 }     // 5 socket connections per minute (for page refreshes)
+    messages: { max: 50, window: 60000 },  // 50 messages per minute (increased)
+    typing: { max: 100, window: 60000 },   // 100 typing events per minute (increased)
+    join: { max: 30, window: 60000 },      // 30 room joins per minute
+    connect: { max: 10, window: 60000 }    // 10 socket connections per minute
   };
 
-  // Debounce configuration
-  private readonly TYPING_DEBOUNCE_DELAY = 1000; // 1 second
-  private readonly TYPING_STOP_DELAY = 3000;     // 3 seconds
+  // Debounce configuration - Reduced for better real-time feel
+  private readonly TYPING_DEBOUNCE_DELAY = 500;  // 500ms (reduced from 1s)
+  private readonly TYPING_STOP_DELAY = 2000;     // 2 seconds (reduced from 3s)
   
-  // Presence heartbeat configuration - balanced for real-time feel without rate limit issues
-  private readonly PRESENCE_HEARTBEAT_INTERVAL = 10000; // 10 seconds (was 2 seconds)
+  // Presence heartbeat configuration - Optimized for real-time without spam
+  private readonly PRESENCE_HEARTBEAT_INTERVAL = 15000; // 15 seconds (reduced from 30s for faster updates)
 
   constructor(io: SocketServer) {
     this.io = io;
@@ -278,15 +278,6 @@ export class OptimizedSocketHandlers {
       await this.handleFriendStatusCheck(socket, data);
     });
 
-    // Direct messaging events
-    socket.on('dm_sent', async (data) => {
-      await this.handleDirectMessage(socket, data);
-    });
-
-    socket.on('dm_read', async (data) => {
-      await this.handleDirectMessageRead(socket, data);
-    });
-
     // Room moderation events
     socket.on('user_kicked', async (data) => {
       await this.handleUserKicked(socket, data);
@@ -375,10 +366,10 @@ export class OptimizedSocketHandlers {
         user: socket.user
       };
 
-      // Broadcast to ALL users in the room (including sender for consistency)
+      // OPTIMIZED: Broadcast to room IMMEDIATELY (all users including sender)
       this.io.to(data.roomId).emit('new_message', messageWithUser);
 
-      // Also send confirmation to sender with tempId mapping
+      // Send confirmation to sender with tempId for client-side deduplication
       socket.emit('message_sent', {
         tempId: data.tempId,
         message: messageWithUser
@@ -386,9 +377,6 @@ export class OptimizedSocketHandlers {
 
       // Stop typing indicator
       await this.handleTypingStop(socket, { roomId: data.roomId });
-
-      // Cache recent messages for faster retrieval
-      await redisService.setCache(`recent_msg:${data.roomId}`, message, 3600);
 
       logger.debug(`Message sent successfully by user ${userId} to room ${data.roomId}`);
 
@@ -730,7 +718,7 @@ export class OptimizedSocketHandlers {
    */
   private async handleFriendRequestAccepted(socket: RateLimitedSocket, data: any): Promise<void> {
     try {
-      const { requesterId, friendship, privateRoom } = data;
+      const { requesterId, friendship } = data;
       if (!requesterId || !friendship) return;
 
       const userId = socket.userId!;
@@ -741,7 +729,6 @@ export class OptimizedSocketHandlers {
         for (const socketId of requesterSockets) {
           this.io.to(socketId).emit('friend_request_accepted', {
             friendship,
-            privateRoom,
             acceptedBy: userId,
             timestamp: new Date()
           });
@@ -751,7 +738,6 @@ export class OptimizedSocketHandlers {
       // Notify accepter (current user)
       socket.emit('friend_added', {
         friendship,
-        privateRoom,
         timestamp: new Date()
       });
 
@@ -805,67 +791,6 @@ export class OptimizedSocketHandlers {
       socket.emit('friend_statuses', { statuses });
     } catch (error) {
       logger.error('Friend status check handler error:', error);
-    }
-  }
-
-  /**
-   * Handle direct message - send to recipient
-   */
-  private async handleDirectMessage(socket: RateLimitedSocket, data: any): Promise<void> {
-    try {
-      const { recipientId, message, conversationId } = data;
-      if (!recipientId || !message) return;
-
-      const senderId = socket.userId!;
-
-      // Emit to all of recipient's active sockets
-      const recipientSockets = this.connectionPool.get(recipientId);
-      if (recipientSockets) {
-        for (const socketId of recipientSockets) {
-          this.io.to(socketId).emit('dm_received', {
-            message,
-            conversationId,
-            senderId,
-            timestamp: new Date()
-          });
-        }
-      }
-
-      // Confirm to sender
-      socket.emit('dm_delivered', {
-        messageId: message.id,
-        delivered: recipientSockets && recipientSockets.size > 0,
-        timestamp: new Date()
-      });
-
-      logger.debug(`Direct message from ${senderId} to ${recipientId}`);
-    } catch (error) {
-      logger.error('Direct message handler error:', error);
-    }
-  }
-
-  /**
-   * Handle direct message read - notify sender
-   */
-  private async handleDirectMessageRead(socket: RateLimitedSocket, data: any): Promise<void> {
-    try {
-      const { senderId, messageIds, conversationId } = data;
-      if (!senderId || !messageIds) return;
-
-      // Notify sender that messages were read
-      const senderSockets = this.connectionPool.get(senderId);
-      if (senderSockets) {
-        for (const socketId of senderSockets) {
-          this.io.to(socketId).emit('dm_read_receipt', {
-            messageIds,
-            conversationId,
-            readBy: socket.userId,
-            timestamp: new Date()
-          });
-        }
-      }
-    } catch (error) {
-      logger.error('Direct message read handler error:', error);
     }
   }
 
@@ -1010,14 +935,16 @@ export class OptimizedSocketHandlers {
   private setupConnectionMonitoring(socket: RateLimitedSocket): void {
     const userId = socket.userId!;
 
-    // Connection health monitoring
+    // Aggressive connection health monitoring for real-time feel
     const healthCheckInterval = setInterval(() => {
       socket.emit('ping', { timestamp: Date.now() });
-    }, 30000);
+    }, 10000); // Ping every 10 seconds (reduced from 30s)
 
     socket.on('pong', (data) => {
       const latency = Date.now() - data.timestamp;
-      logger.debug(`User ${userId} latency: ${latency}ms`);
+      if (latency > 200) {
+        logger.warn(`High latency for user ${userId}: ${latency}ms`);
+      }
     });
 
     // Cleanup on disconnect

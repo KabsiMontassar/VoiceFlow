@@ -423,7 +423,7 @@ class ApiClient {
    * Get current user profile
    */
   async getMyProfile() {
-    const response = await this.client.get('/api/users/me');
+    const response = await this.client.get('/api/v1/users/me');
     return response.data as ApiResponse;
   }
 
@@ -438,7 +438,7 @@ class ApiClient {
     avatarUrl?: string;
     bio?: string;
   }) {
-    const response = await this.client.patch('/api/users/me', data);
+    const response = await this.client.patch('/api/v1/users/me', data);
     return response.data as ApiResponse;
   }
 
@@ -446,7 +446,7 @@ class ApiClient {
    * Change password
    */
   async changePassword(currentPassword: string, newPassword: string) {
-    const response = await this.client.post('/api/users/me/password', {
+    const response = await this.client.post('/api/v1/users/me/password', {
       currentPassword,
       newPassword
     });
@@ -484,7 +484,7 @@ class ApiClient {
    * Join room by code
    */
   async joinRoomByCode(code: string) {
-    const response = await this.client.post(`/api/rooms/join/${code}`);
+    const response = await this.client.post(`/api/v1/rooms/join/${code}`);
     return response.data as ApiResponse;
   }
 
@@ -492,7 +492,7 @@ class ApiClient {
    * Kick user from room
    */
   async kickUserFromRoom(roomId: string, userId: string, reason?: string) {
-    const response = await this.client.post(`/api/rooms/${roomId}/kick/${userId}`, { reason });
+    const response = await this.client.post(`/api/v1/rooms/${roomId}/kick/${userId}`, { reason });
     return response.data as ApiResponse;
   }
 
@@ -500,7 +500,7 @@ class ApiClient {
    * Ban user from room
    */
   async banUserFromRoom(roomId: string, userId: string, reason?: string) {
-    const response = await this.client.post(`/api/rooms/${roomId}/ban/${userId}`, { reason });
+    const response = await this.client.post(`/api/v1/rooms/${roomId}/ban/${userId}`, { reason });
     return response.data as ApiResponse;
   }
 
@@ -508,7 +508,7 @@ class ApiClient {
    * Unban user from room
    */
   async unbanUserFromRoom(roomId: string, userId: string) {
-    const response = await this.client.delete(`/api/rooms/${roomId}/ban/${userId}`);
+    const response = await this.client.delete(`/api/v1/rooms/${roomId}/ban/${userId}`);
     return response.data as ApiResponse;
   }
 
@@ -516,7 +516,7 @@ class ApiClient {
    * Get room bans
    */
   async getRoomBans(roomId: string) {
-    const response = await this.client.get(`/api/rooms/${roomId}/bans`);
+    const response = await this.client.get(`/api/v1/rooms/${roomId}/bans`);
     return response.data as ApiResponse;
   }
 

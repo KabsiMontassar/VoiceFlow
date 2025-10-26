@@ -370,12 +370,6 @@ export class RoomService {
       throw new AppError('Room not found', 404, ERROR_CODES.ROOM_NOT_FOUND);
     }
 
-    // Check if private 1:1 room
-    const memberCount = await RoomUserModel.count({ where: { roomId } });
-    if (memberCount === 2 && room.maxUsers === 2) {
-      throw new AppError('Cannot kick from private 1:1 room. Remove friend instead.', 400, ERROR_CODES.PERMISSION_DENIED);
-    }
-
     // Check if kicker is admin
     const kickerMembership = await RoomUserModel.findOne({
       where: { roomId, userId: kickedBy },
@@ -416,12 +410,6 @@ export class RoomService {
 
     if (!room) {
       throw new AppError('Room not found', 404, ERROR_CODES.ROOM_NOT_FOUND);
-    }
-
-    // Check if private 1:1 room
-    const memberCount = await RoomUserModel.count({ where: { roomId } });
-    if (memberCount === 2 && room.maxUsers === 2) {
-      throw new AppError('Cannot ban from private 1:1 room. Remove friend instead.', 400, ERROR_CODES.PERMISSION_DENIED);
     }
 
     // Check if banner is admin

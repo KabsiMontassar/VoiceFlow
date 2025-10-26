@@ -3,7 +3,7 @@
  * Fetches and keeps user's rooms in sync across the app
  */
 import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/authStore';
 import { useRoomStore } from '../stores/roomStore';
 import { apiClient } from '../services/api';
@@ -13,7 +13,6 @@ import type { Room } from '../../../shared/src';
 export function useRoomsSync() {
   const { isAuthenticated, isHydrated } = useAuthStore();
   const { setRooms } = useRoomStore();
-  const queryClient = useQueryClient();
 
   // Fetch rooms when authenticated
   const { data: roomsData, isLoading, error, refetch } = useQuery({
@@ -39,9 +38,11 @@ export function useRoomsSync() {
     },
     enabled: isAuthenticated && isHydrated, // Only fetch when authenticated and hydrated
     retry: 1,
-    staleTime: 30000, // Consider data fresh for 30 seconds
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes (increased from 30s)
+    gcTime: 10 * 60 * 1000, // Cache for 10 minutes
     refetchOnWindowFocus: false, // Don't refetch on window focus to prevent loops
     refetchInterval: false, // Disable automatic refetch interval
+    refetchOnMount: false, // Don't refetch on component mount if data exists
   });
 
   // Update Zustand store when rooms change
@@ -59,27 +60,27 @@ export function useRoomsSync() {
 
     const handleRoomCreated = () => {
       console.log('[RoomsSync] Room created, refetching...');
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      refetch();
     };
 
     const handleRoomDeleted = () => {
       console.log('[RoomsSync] Room deleted, refetching...');
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      refetch();
     };
 
     const handleRoomUpdated = () => {
       console.log('[RoomsSync] Room updated, refetching...');
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      refetch();
     };
 
     const handleUserJoinedRoom = () => {
       console.log('[RoomsSync] User joined room, refetching...');
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      refetch();
     };
 
     const handleUserLeftRoom = () => {
       console.log('[RoomsSync] User left room, refetching...');
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      refetch();
     };
 
     // Register event listeners
@@ -97,7 +98,7 @@ export function useRoomsSync() {
       socketClient.off('user_joined_room', handleUserJoinedRoom);
       socketClient.off('user_left_room', handleUserLeftRoom);
     };
-  }, [isAuthenticated, queryClient]);
+  }, [isAuthenticated, refetch]);
 
   return {
     rooms: roomsData || [],

@@ -111,6 +111,9 @@ app.get('/api/v1/info', (req: express.Request, res: express.Response) => {
 // Mount API routes
 app.use('/api/v1', apiRoutes);
 
+// Make Socket.IO instance available to controllers
+app.set('io', io);
+
 // Error handling middleware (must be last)
 app.use(errorHandler);
 

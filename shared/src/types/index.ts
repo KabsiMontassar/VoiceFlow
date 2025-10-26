@@ -49,36 +49,13 @@ export interface Friendship {
   id: string;
   user1Id: string;
   user2Id: string;
-  roomId: string | null;
   createdAt: Date;
   friend?: User; // The other user in the friendship
-  privateRoom?: Room;
 }
 
 export interface FriendWithStatus extends User {
   friendshipId: string;
   isOnline: boolean;
-  privateRoomId: string | null;
-}
-
-// Direct Message Types
-export interface DirectMessage {
-  id: string;
-  senderId: string;
-  receiverId: string;
-  content: string;
-  isRead: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  sender?: User;
-  receiver?: User;
-}
-
-export interface DMConversation {
-  friendId: string;
-  friend: User;
-  lastMessage: DirectMessage | null;
-  unreadCount: number;
 }
 
 // Room Types
@@ -93,7 +70,6 @@ export interface Room {
   createdAt: Date;
   lastActivity: Date;
   isActive: boolean;
-  isPrivate?: boolean; // True for 1:1 friend rooms
 }
 
 export interface RoomSettings {
@@ -188,10 +164,14 @@ export enum UserPresenceStatus {
 
 export interface UserPresence {
   userId: string;
-  roomId: string;
+  username?: string;
+  email?: string;
+  roomId?: string;
+  currentRoom?: string;
   status: UserPresenceStatus;
-  isTyping: boolean;
-  lastActivity: Date;
+  isTyping?: boolean;
+  lastSeen?: Date;
+  lastActivity?: Date;
   sessionInfo?: {
     sessionId?: string;
     deviceId?: string;

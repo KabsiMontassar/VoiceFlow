@@ -46,7 +46,6 @@ export class FriendshipModel extends Model {
   declare id: string;
   declare user1Id: string;
   declare user2Id: string;
-  declare roomId: string | null; // Private 1:1 room
   declare createdAt: Date;
 }
 
@@ -504,14 +503,6 @@ export const initializeModels = (sequelize: Sequelize): void => {
           key: 'id',
         },
       },
-      roomId: {
-        type: DataTypes.UUID,
-        allowNull: true,
-        references: {
-          model: 'rooms',
-          key: 'id',
-        },
-      },
       createdAt: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
@@ -526,7 +517,6 @@ export const initializeModels = (sequelize: Sequelize): void => {
         { fields: ['user1Id'] },
         { fields: ['user2Id'] },
         { fields: ['user1Id', 'user2Id'], unique: true },
-        { fields: ['roomId'] },
       ],
     },
   );
@@ -722,7 +712,6 @@ export const initializeModels = (sequelize: Sequelize): void => {
   // Friendship associations
   FriendshipModel.belongsTo(UserModel, { foreignKey: 'user1Id', as: 'user1' });
   FriendshipModel.belongsTo(UserModel, { foreignKey: 'user2Id', as: 'user2' });
-  FriendshipModel.belongsTo(RoomModel, { foreignKey: 'roomId', as: 'privateRoom' });
 
   // Room ban associations
   RoomBanModel.belongsTo(RoomModel, { foreignKey: 'roomId', as: 'room' });

@@ -8,11 +8,7 @@ import {
   UserModel, 
   FriendRequestModel, 
   FriendshipModel,
-  RoomModel,
-  RoomUserModel,
-  MessageModel
 } from '../models/index';
-import { generateRoomCode } from '../utils/codeGenerator';
 // @ts-ignore
 import type { FriendRequest, Friendship, User, FriendWithStatus } from '../../../shared/src';
 
@@ -122,7 +118,7 @@ export class FriendService {
   }
 
   /**
-   * Accept a friend request and create 1:1 private room
+   * Accept a friend request - creates friendship (no private room)
    */
   static async acceptFriendRequest(requestId: string, userId: string): Promise<FriendRequest> {
     const request = await FriendRequestModel.findByPk(requestId);
@@ -143,47 +139,10 @@ export class FriendService {
     request.status = 'accepted';
     await request.save();
 
-    // Create private 1:1 room
-    const roomCode = generateRoomCode();
-    const [user1, user2] = await Promise.all([
-      UserModel.findByPk(request.senderId),
-      UserModel.findByPk(request.receiverId),
-    ]);
-
-    const room = await RoomModel.create({
-      code: roomCode,
-      name: `${user1?.username} & ${user2?.username}`,
-      description: 'Private chat',
-      createdById: userId,
-      maxUsers: 2,
-      settings: {
-        isPublic: false,
-        allowGuests: false,
-        requireApproval: false,
-        recordMessages: true,
-      },
-      isActive: true,
-    });
-
-    // Add both users to the room
-    await Promise.all([
-      RoomUserModel.create({
-        roomId: room.id,
-        userId: request.senderId,
-        role: 'member',
-      }),
-      RoomUserModel.create({
-        roomId: room.id,
-        userId: request.receiverId,
-        role: 'member',
-      }),
-    ]);
-
-    // Create friendship with room reference
+    // Create friendship
     await FriendshipModel.create({
       user1Id: request.senderId < request.receiverId ? request.senderId : request.receiverId,
       user2Id: request.senderId < request.receiverId ? request.receiverId : request.senderId,
-      roomId: room.id,
     });
 
     // Reload request with user data
@@ -252,7 +211,6 @@ export class FriendService {
       include: [
         { model: UserModel, as: 'user1' },
         { model: UserModel, as: 'user2' },
-        { model: RoomModel, as: 'privateRoom' },
       ],
     });
 
@@ -267,7 +225,6 @@ export class FriendService {
           ...friendData,
           friendshipId: friendship.id,
           isOnline: friendData.status === 'active' || friendData.status === 'in_call',
-          privateRoomId: friendship.roomId,
         } as FriendWithStatus);
       }
     }
@@ -276,7 +233,7 @@ export class FriendService {
   }
 
   /**
-   * Remove a friend and delete their private room
+   * Remove a friend (no room deletion needed)
    */
   static async removeFriend(userId: string, friendId: string): Promise<void> {
     const friendship = await FriendshipModel.findOne({
@@ -290,23 +247,6 @@ export class FriendService {
 
     if (!friendship) {
       throw new Error('Friendship not found');
-    }
-
-    // Delete all messages in the private room
-    if (friendship.roomId) {
-      await MessageModel.destroy({
-        where: { roomId: friendship.roomId },
-      });
-
-      // Delete room users
-      await RoomUserModel.destroy({
-        where: { roomId: friendship.roomId },
-      });
-
-      // Delete the room
-      await RoomModel.destroy({
-        where: { id: friendship.roomId },
-      });
     }
 
     // Delete the friendship

@@ -75,6 +75,33 @@ export class FriendController {
 
       const friendRequest = await FriendService.acceptFriendRequest(requestId, userId);
 
+      // Emit socket event to notify the requester that their request was accepted
+      const io = (req.app as any).get('io');
+      if (io && friendRequest) {
+        const requesterId = (friendRequest as any).senderId;
+        
+        // Get friendship data
+        const friendship = await FriendService.getFriends(userId);
+        const newFriend = friendship.find((f: any) => 
+          f.id === requesterId || f.friendshipId === requesterId
+        );
+
+        // Notify the requester
+        io.emit('friend_request_accepted', {
+          requesterId,
+          friendship: newFriend,
+          acceptedBy: userId,
+          timestamp: new Date()
+        });
+
+        // Notify the accepter
+        io.emit('friend_added', {
+          userId: requesterId,
+          friendship: newFriend,
+          timestamp: new Date()
+        });
+      }
+
       res.status(200).json(successResponse(friendRequest, 'Friend request accepted'));
     } catch (error: any) {
       logger.error('Accept friend request error:', error);

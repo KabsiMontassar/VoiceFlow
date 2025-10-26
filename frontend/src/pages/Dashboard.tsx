@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { 
   Users, 
   UserPlus, 
-  MessageCircle, 
   // Settings as SettingsIcon,
   Plus,
   Search,
@@ -18,7 +17,6 @@ import Modal from '../components/ui/Modal';
 import CreateRoomModal from '../components/dashboard/CreateRoomModal';
 import JoinRoomModal from '../components/dashboard/JoinRoomModal';
 import FriendRequestModal from '../components/dashboard/FriendRequestModal';
-import PrivateChatModal from '../components/dashboard/PrivateChatModal';
 import { FriendCardSkeleton } from '../components/ui/LoadingSkeleton';
 import { apiClient } from '../services/api';
 import type { FriendWithStatus } from '@voiceflow/shared';
@@ -71,10 +69,6 @@ export default function Dashboard() {
   const [showFriendRequests, setShowFriendRequests] = useState(false);
   const [friendCode, setFriendCode] = useState('');
   const [isAddingFriend, setIsAddingFriend] = useState(false);
-  
-  // Private chat state
-  const [showPrivateChat, setShowPrivateChat] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<FriendWithStatus | null>(null);
 
   // const [profileData, setProfileData] = useState({
   //   username: user?.username || '',
@@ -167,13 +161,8 @@ export default function Dashboard() {
   //   console.log('Updating profile:', profileData);
   // };
 
-  const handleStartPrivateChat = (friendId: string) => {
-    const friend = friends.find(f => f.id === friendId);
-    if (friend) {
-      setSelectedFriend(friend);
-      setShowPrivateChat(true);
-    }
-  };
+  // Removed private chat functionality as 1-to-1 private rooms are no longer supported
+  // Users must create rooms to communicate
 
   return (
     <div className="h-full flex flex-col bg-background-primary">
@@ -287,7 +276,6 @@ export default function Dashboard() {
                     <FriendCard
                       key={friend.id}
                       friend={friend}
-                      onStartChat={handleStartPrivateChat}
                     />
                   ))}
                 </div>
@@ -306,7 +294,6 @@ export default function Dashboard() {
                     <FriendCard
                       key={friend.id}
                       friend={friend}
-                      onStartChat={handleStartPrivateChat}
                     />
                   ))}
                 </div>
@@ -357,14 +344,6 @@ export default function Dashboard() {
         isOpen={showFriendRequests}
         onClose={() => setShowFriendRequests(false)}
       />
-      <PrivateChatModal
-        isOpen={showPrivateChat}
-        onClose={() => {
-          setShowPrivateChat(false);
-          setSelectedFriend(null);
-        }}
-        friend={selectedFriend}
-      />
 
       {/* Add Friend Modal */}
       <Modal
@@ -407,10 +386,10 @@ export default function Dashboard() {
 // Friend Card Component - moved to top
 interface FriendCardPropsSecond {
   friend: FriendWithStatus;
-  onStartChat: (friendId: string) => void;
+  onStartChat?: (friendId: string) => void;
 }
 
-function FriendCard({ friend, onStartChat }: FriendCardPropsSecond) {
+function FriendCard({ friend }: FriendCardPropsSecond) {
   return (
     <div className="card p-4 hover:shadow-lg hover:shadow-primary/10 transition-all group">
       <div className="flex items-start justify-between mb-3">
@@ -455,14 +434,10 @@ function FriendCard({ friend, onStartChat }: FriendCardPropsSecond) {
         )}
       </div>
 
-      {/* Actions */}
-      <button
-        onClick={() => onStartChat(friend.id)}
-        className="w-full btn-primary flex items-center justify-center gap-2 text-sm"
-      >
-        <MessageCircle className="w-4 h-4" />
-        Message
-      </button>
+      {/* Note: Private messaging removed - users must create rooms to communicate */}
+      <div className="text-xs text-muted-text text-center pt-2 font-primary">
+        Create a room to chat with {friend.username}
+      </div>
     </div>
   );
 }

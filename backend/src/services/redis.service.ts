@@ -322,7 +322,7 @@ export class RedisService {
 
       await this.cacheClient.setex(
         `presence:${userId}`, 
-        300, // 5 minutes TTL
+        3600, // 1 hour TTL - increased from 5 minutes to prevent premature expiry
         JSON.stringify(presenceData)
       );
       

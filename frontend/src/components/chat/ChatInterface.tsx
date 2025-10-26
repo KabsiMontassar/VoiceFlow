@@ -49,6 +49,7 @@ export function ChatInterface() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const room = rooms.find(r => r.id === roomId);
   const messages = Array.isArray(currentRoomMessages[roomId]) ? currentRoomMessages[roomId] : [];
@@ -58,9 +59,22 @@ export function ChatInterface() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Scroll when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Debug: Log active users changes
+  useEffect(() => {
+    console.log('[ChatInterface] Active users changed:', Array.from(activeUsers));
+  }, [activeUsers]);
+
+  // Scroll when typing indicator appears
+  useEffect(() => {
+    if (typingUsers.length > 0) {
+      scrollToBottom();
+    }
+  }, [typingUsers]);
 
   // Load messages and room data when entering room
   useEffect(() => {
@@ -68,55 +82,70 @@ export function ChatInterface() {
 
     const loadRoomData = async () => {
       try {
-        setIsLoadingMessages(true);
+        // Check if we already have messages cached
+        const cachedMessages = currentRoomMessages[roomId];
+        const hasCachedMessages = cachedMessages && cachedMessages.length > 0;
 
-        // Skip API join - user is already a member if they can see this room in Dashboard
-        // Socket will handle the real-time room joining for presence/messages
-        console.log('[ChatInterface] Loading room data for:', roomId);
+        if (hasCachedMessages) {
+          console.log('[ChatInterface] Using cached messages for:', roomId);
+          setIsLoadingMessages(false);
+          // Don't skip - still need to load members!
+        } else {
+          setIsLoadingMessages(true);
+          console.log('[ChatInterface] Loading room data for:', roomId);
+        }
 
-        // Load messages for this room
-        const messagesResponse = await apiClient.getRoomMessages(roomId);
+        // Always load members, but only load messages if not cached
+        const requests = [apiClient.getRoomMembers(roomId)];
+        if (!hasCachedMessages) {
+          requests.unshift(apiClient.getRoomMessages(roomId));
+        }
 
-        if (messagesResponse.success && messagesResponse.data) {
-          // Extract the messages array from the response data
+        const responses = await Promise.all(requests);
+        
+        // Process responses based on what we requested
+        let messagesResponse, membersResponse;
+        if (hasCachedMessages) {
+          membersResponse = responses[0];
+        } else {
+          messagesResponse = responses[0];
+          membersResponse = responses[1];
+        }
+
+        // Process messages (only if not using cache)
+        if (messagesResponse && messagesResponse.success && messagesResponse.data) {
           const responseData = messagesResponse.data as any;
           const messages = Array.isArray(responseData.data) ? responseData.data : responseData;
           setRoomMessages(roomId, messages);
         }
 
-        // Load room members
-        try {
-          const membersResponse = await apiClient.getRoomMembers(roomId);
-          if (membersResponse.success && membersResponse.data) {
-            const membersData = membersResponse.data as any[];
+        // Process members (always)
+        if (membersResponse && membersResponse.success && membersResponse.data) {
+          const membersData = membersResponse.data as any[];
 
-            // Extract user data from the RoomUser structure
-            const membersList = membersData.map(memberData => {
-              // Handle different possible structures
-              if (memberData.user) {
-                return {
-                  id: memberData.user.id,
-                  username: memberData.user.username,
-                  email: memberData.user.email,
-                  joinedAt: memberData.joinedAt,
-                  role: memberData.role
-                };
-              } else {
-                // Fallback if structure is different
-                return memberData;
-              }
-            });
+          // Extract user data from the RoomUser structure
+          const membersList = membersData.map(memberData => {
+            // Handle different possible structures
+            if (memberData.user) {
+              return {
+                id: memberData.user.id,
+                username: memberData.user.username,
+                email: memberData.user.email,
+                joinedAt: memberData.joinedAt,
+                role: memberData.role
+              };
+            } else {
+              // Fallback if structure is different
+              return memberData;
+            }
+          });
 
-            setMembers(membersList);
+          setMembers(membersList);
 
-            // Initialize active users with ONLY the current user
-            // Other users' active status will be determined by the room_presence event from server
-            setActiveUsers(new Set([user.id]));
-          }
-        } catch (error) {
-          console.warn('Failed to load room members:', error);
+          // Initialize active users with ONLY the current user
+          // Other users' active status will be determined by the room_presence event from server
+          setActiveUsers(new Set([user.id]));
         }
-
       } catch (error) {
         console.error('Failed to load room data:', error);
       } finally {
@@ -179,7 +208,7 @@ export function ChatInterface() {
         }
         : {
           id: message.userId,
-          username: message.userId, // Use userId as fallback instead of 'User'
+          username: 'Unknown User', // Better fallback than userId
           email: '',
           avatarUrl: null,
           status: 'inactive',
@@ -200,28 +229,24 @@ export function ChatInterface() {
       if (message.roomId === roomId) {
         const messageWithAuthor = toMessageWithAuthor(message);
         
-        // If this is our own message, remove any temporary version first
-        if (user && message.userId === user.id) {
-          // Use callback form to get current state
-          removeMessage(`temp-${message.userId}`, roomId);
-        }
-        
+        // OPTIMIZED: Since server now excludes sender from broadcast,
+        // this handler only receives messages from OTHER users
         addMessage(roomId, messageWithAuthor as any);
       }
     };
 
     const handleMessageSent = (response: any) => {
-      // This event confirms message delivery and provides tempId mapping
+      // This event confirms OUR OWN message was sent successfully
       const messageData = response.message || response.data || response;
       const tempId = response.tempId;
       
       if (messageData && messageData.roomId === roomId) {
-        // Remove the temporary message if tempId is provided
+        // Remove the temporary optimistic message
         if (tempId && tempId.startsWith('temp-')) {
           removeMessage(tempId, roomId);
         }
         
-        // Add the real message (addMessage handles duplicates)
+        // Add the confirmed message from server
         const messageWithAuthor = toMessageWithAuthor(messageData);
         addMessage(roomId, messageWithAuthor as any);
       }
@@ -299,6 +324,7 @@ export function ChatInterface() {
     };
 
     const handleRoomPresenceUpdate = (data: any) => {
+      console.log('[ChatInterface] Received room_presence_update event:', data);
       if (data.users && Array.isArray(data.users)) {
         // Update active users based on room presence data
         const activeUserIds = data.users
@@ -308,7 +334,9 @@ export function ChatInterface() {
           )
           .map((userPresence: any) => userPresence.userId as string);
 
-        // Always update active users - removed comparison check that was causing stale data
+        console.log('[ChatInterface] Updating active users to:', activeUserIds);
+        // CRITICAL FIX: Always update active users without comparison
+        // This ensures real-time presence updates are reflected immediately
         setActiveUsers(new Set<string>(activeUserIds));
 
         // Also merge any new users into the members list
@@ -339,6 +367,7 @@ export function ChatInterface() {
 
     // Handle initial room presence when joining
     const handleRoomPresence = (data: any) => {
+      console.log('[ChatInterface] Received room_presence event:', data);
       if (data.users && Array.isArray(data.users)) {
         // Set active users based on initial room presence data
         const activeUserIds = data.users
@@ -348,6 +377,7 @@ export function ChatInterface() {
           )
           .map((userPresence: any) => userPresence.userId);
 
+        console.log('[ChatInterface] Setting active users:', activeUserIds);
         setActiveUsers(new Set(activeUserIds));
 
         // Update members list with presence information
@@ -357,6 +387,7 @@ export function ChatInterface() {
           email: userPresence.email || '',
           status: userPresence.status
         }));
+        console.log('[ChatInterface] Users with info:', usersWithInfo);
 
         // Merge with existing members, prioritizing existing data
         setMembers(prev => {
@@ -397,6 +428,11 @@ export function ChatInterface() {
       // Leave room and stop typing
       socketClient.typingStop(roomId);
       socketClient.leaveRoom(roomId);
+      
+      // Clear typing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, user]);
@@ -431,6 +467,12 @@ export function ChatInterface() {
     // Clear input and stop typing
     setMessageInput('');
     socketClient.typingStop(roomId);
+    
+    // Clear typing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
 
     // Close emoji picker when sending message
     setShowEmojiPicker(false);
@@ -468,8 +510,18 @@ export function ChatInterface() {
       setMentionStartPos(null);
     }
 
+    // Debounced typing indicator - only send after 300ms of inactivity
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
     if (value.trim()) {
       socketClient.typingStart(roomId);
+      
+      // Auto-stop typing after 3 seconds of no input
+      typingTimeoutRef.current = setTimeout(() => {
+        socketClient.typingStop(roomId);
+      }, 3000);
     } else {
       socketClient.typingStop(roomId);
     }
@@ -575,9 +627,29 @@ export function ChatInterface() {
             <div className="flex items-center space-x-3 text-sm text-secondary-text">
               <span className="font-primary font-medium">{members.length} members</span>
               {room.code && (
-                <span className="inline-flex items-center px-2.5 py-1 bg-primary/10 text-primary border border-primary/20 rounded-md text-xs font-primary font-semibold tracking-wide">
-                  #{room.code}
-                </span>
+                <button
+                  onClick={async (e) => {
+                    try {
+                      await navigator.clipboard.writeText(room.code!);
+                      // Show a visual indicator that it was copied
+                      const button = e.currentTarget;
+                      const codeSpan = button.querySelector('span');
+                      if (codeSpan) {
+                        const originalText = codeSpan.textContent;
+                        codeSpan.textContent = 'Copied!';
+                        setTimeout(() => {
+                          codeSpan.textContent = originalText || '';
+                        }, 2000);
+                      }
+                    } catch (error) {
+                      console.error('Failed to copy room code:', error);
+                    }
+                  }}
+                  className="inline-flex items-center px-2.5 py-1 bg-primary/10 text-primary border border-primary/20 rounded-md text-xs font-primary font-semibold tracking-wide hover:bg-primary/20 hover:border-primary/30 transition-all cursor-pointer active:scale-95"
+                  title="Click to copy room code"
+                >
+                  <span>#{room.code}</span>
+                </button>
               )}
             </div>
           </div>
@@ -817,7 +889,7 @@ export function ChatInterface() {
                       <div className="flex-1 text-left">
                         <div className="text-sm font-primary font-semibold text-primary-text group-hover:text-primary transition-colors">{member.username}</div>
                         <div className="text-xs font-primary text-secondary-text font-medium">
-                          {member.isOnline ? 'Active' : 'Offline'}
+                          {member.isOnline ? 'Online' : 'Offline'}
                         </div>
                       </div>
                     </button>
@@ -892,7 +964,7 @@ export function ChatInterface() {
                           <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-success' : 'bg-muted-text'
                             }`}></div>
                           <span className="text-xs font-primary text-secondary-text font-medium">
-                            {isActive ? 'Active' : 'Offline'}
+                            {isActive ? 'Online' : 'Offline'}
                           </span>
                         </div>
                       </div>

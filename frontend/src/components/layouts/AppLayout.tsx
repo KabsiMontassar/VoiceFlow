@@ -24,6 +24,7 @@ export function AppLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCopied, setShowCopied] = useState(false);
+  const [copiedRoomId, setCopiedRoomId] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const { user, logout } = useAuthStore();
   const { rooms } = useRoomStore();
@@ -157,8 +158,21 @@ export function AppLayout() {
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0 text-left">
                       <div className="font-primary font-medium truncate">{room.name}</div>
-                      <div className="text-xs text-muted-text truncate font-primary">
-                        #{room.code}
+                      <div 
+                        className="text-xs text-muted-text truncate font-primary cursor-pointer hover:text-primary transition-colors"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await navigator.clipboard.writeText(room.code);
+                            setCopiedRoomId(room.id);
+                            setTimeout(() => setCopiedRoomId(null), 1500);
+                          } catch (error) {
+                            console.error('Failed to copy room code:', error);
+                          }
+                        }}
+                        title="Click to copy room code"
+                      >
+                        {copiedRoomId === room.id ? 'Copied!' : `#${room.code}`}
                       </div>
                     </div>
                   )}

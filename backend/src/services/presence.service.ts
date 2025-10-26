@@ -5,19 +5,8 @@
 
 import { Server as SocketServer, Socket } from 'socket.io';
 import { redisService } from './redis.service';
-import { UserPresenceStatus } from '../../../shared/src/types';
+import { UserPresenceStatus, UserPresence } from '../../../shared/src/types';
 import logger from '../utils/logger';
-
-export interface UserPresence {
-  userId: string;
-  status: UserPresenceStatus;
-  lastSeen: Date;
-  currentRoom?: string;
-  socketId?: string;
-  sessionId?: string;
-  userAgent?: string;
-  ipAddress?: string;
-}
 
 export interface RoomPresence {
   roomId: string;
@@ -47,12 +36,15 @@ export class PresenceService {
   
   // Cleanup intervals
   private typingCleanupInterval: NodeJS.Timeout | null = null;
+  private presenceHeartbeatInterval: NodeJS.Timeout | null = null;
 
   // Configuration
   private readonly TYPING_TIMEOUT = 3000; // 3 seconds
+  private readonly PRESENCE_HEARTBEAT_INTERVAL = 45000; // 45 seconds - refresh Redis TTL before expiry
 
   constructor() {
     this.startCleanupIntervals();
+    this.startPresenceHeartbeat();
   }
 
   /**
@@ -71,6 +63,8 @@ export class PresenceService {
       const socketId = socket.id;
       
       // Update socket mappings
+      const isFirstConnection = !this.userSockets.has(userId);
+      
       if (!this.userSockets.has(userId)) {
         this.userSockets.set(userId, new Set());
       }
@@ -82,28 +76,22 @@ export class PresenceService {
         userId,
         status: UserPresenceStatus.ACTIVE, // This is just cache, real status is in Redis
         lastSeen: new Date(),
-        socketId,
-        sessionId,
-        userAgent: socket.handshake.headers['user-agent'],
-        ipAddress: socket.handshake.address
+        currentRoom: undefined
       };
 
       this.presenceCache.set(userId, presence);
       
-      // Global user status is managed by auth service in Redis
-      // We just ensure user is marked as ACTIVE when they connect with valid auth
+      // CRITICAL FIX: Always update Redis with ACTIVE status on socket connection
+      // This ensures Redis reflects the current connection state
       await redisService.setUserPresence(userId, UserPresenceStatus.ACTIVE);
 
-      // Check if user has valid authentication
-      const { jwtService } = await import('../utils/jwt');
-      const isAuthenticated = await jwtService.isUserActive(userId);
-
-      if (isAuthenticated) {
+      // Only broadcast status change on first connection (not for reconnects)
+      if (isFirstConnection) {
         // Notify other users about active status
         this.broadcastPresenceUpdate(userId, UserPresenceStatus.ACTIVE);
+        logger.info(`User ${userId} came online (first connection)`);
       } else {
-        // Mark as inactive if no valid session
-        await this.setUserStatus(userId, UserPresenceStatus.INACTIVE);
+        logger.debug(`User ${userId} reconnected (additional socket)`);
       }
 
       // Send offline messages if any
@@ -133,10 +121,19 @@ export class PresenceService {
         if (userSocketSet.size === 0) {
           this.userSockets.delete(userId);
           
-          // NOTE: We do NOT change global status on socket disconnect
-          // Global status (ACTIVE/INACTIVE) is based on authentication, not socket connection
-          // User remains ACTIVE until they explicitly logout (handled by auth service)
-          logger.debug(`User ${userId} has no more sockets but remains authenticated`);
+          // CRITICAL FIX: When last socket disconnects, mark user as INACTIVE in Redis
+          // This ensures proper offline status tracking
+          await redisService.setUserPresence(userId, UserPresenceStatus.INACTIVE);
+          
+          // Broadcast offline status to other users
+          this.broadcastPresenceUpdate(userId, UserPresenceStatus.INACTIVE);
+          
+          // Remove from presence cache
+          this.presenceCache.delete(userId);
+          
+          logger.info(`User ${userId} went offline (all sockets disconnected)`);
+        } else {
+          logger.debug(`User ${userId} still has ${userSocketSet.size} active socket(s)`);
         }
       }
 
@@ -386,10 +383,22 @@ export class PresenceService {
       const users: UserPresence[] = [];
       let activeUsers = 0;
 
+      // Load all users from database at once for performance
+      const { UserModel } = await import('../models');
+      const dbUsers = await UserModel.findAll({
+        where: { id: Array.from(userIds) },
+        attributes: ['id', 'username', 'email']
+      });
+      
+      const userMap = new Map(dbUsers.map(u => [u.id, u]));
+
       for (const userId of userIds) {
         // Always get global status from Redis (authentication-based)
         const redisPresence = await redisService.getUserPresence(userId);
         const globalStatus = redisPresence?.status || UserPresenceStatus.INACTIVE;
+        
+        // Get user details from database
+        const dbUser = userMap.get(userId);
         
         // Get room presence from cache (for room tracking)
         let presence = this.presenceCache.get(userId);
@@ -398,14 +407,18 @@ export class PresenceService {
           const userSockets = this.userSockets.get(userId);
           presence = {
             userId,
+            username: dbUser?.username || userId,
+            email: dbUser?.email || '',
             status: globalStatus as UserPresenceStatus, // Use global status from Redis
             lastSeen: redisPresence?.lastSeen ? new Date(redisPresence.lastSeen) : new Date(),
             currentRoom: roomId
           };
           this.presenceCache.set(userId, presence);
         } else {
-          // Update cached presence with global status from Redis
+          // Update cached presence with global status from Redis and user details
           presence.status = globalStatus as UserPresenceStatus;
+          presence.username = dbUser?.username || presence.username || userId;
+          presence.email = dbUser?.email || presence.email || '';
           presence.lastSeen = redisPresence?.lastSeen ? new Date(redisPresence.lastSeen) : presence.lastSeen;
         }
         
@@ -593,6 +606,35 @@ export class PresenceService {
   }
 
   /**
+   * Start presence heartbeat to keep Redis presence alive
+   * This prevents presence from expiring due to Redis TTL
+   */
+  private startPresenceHeartbeat(): void {
+    this.presenceHeartbeatInterval = setInterval(async () => {
+      try {
+        // Refresh presence in Redis for all connected users
+        for (const userId of this.userSockets.keys()) {
+          const presence = this.presenceCache.get(userId);
+          if (presence) {
+            // Refresh Redis TTL by updating presence
+            await redisService.setUserPresence(
+              userId,
+              presence.status,
+              presence.currentRoom
+            );
+          }
+        }
+        
+        logger.debug(`Refreshed presence for ${this.userSockets.size} connected users`);
+      } catch (error) {
+        logger.error('Presence heartbeat error:', error);
+      }
+    }, this.PRESENCE_HEARTBEAT_INTERVAL);
+
+    logger.info('Presence heartbeat started');
+  }
+
+  /**
    * Cleanup typing timeouts
    */
   private cleanupTypingTimeouts(): void {
@@ -662,6 +704,10 @@ export class PresenceService {
   public cleanup(): void {
     if (this.typingCleanupInterval) {
       clearInterval(this.typingCleanupInterval);
+    }
+
+    if (this.presenceHeartbeatInterval) {
+      clearInterval(this.presenceHeartbeatInterval);
     }
 
     this.userSockets.clear();
