@@ -23,9 +23,9 @@ const Avatar = ({
   };
 
   const statusClasses = {
-    active: 'bg-green-500',
-    inactive: 'bg-gray-400',
-    away: 'bg-yellow-500',
+    active: 'bg-success',
+    inactive: 'bg-muted',
+    away: 'bg-warning',
   };
 
   return (
@@ -34,18 +34,18 @@ const Avatar = ({
         <img
           src={src}
           alt={alt}
-          className={`${sizeClasses[size]} rounded-full object-cover border-2 border-neutral-100`}
+          className={`${sizeClasses[size]} rounded-full object-cover border-2 border-border`}
         />
       ) : (
         <div
-          className={`${sizeClasses[size]} rounded-full bg-neutral-900 text-white font-mono font-bold flex items-center justify-center border-2 border-neutral-100`}
+          className={`${sizeClasses[size]} rounded-full bg-gradient-to-br from-primary/80 to-secondary font-primary font-bold flex items-center justify-center border-2 border-primary text-black`}
         >
           {initials}
         </div>
       )}
       {status && (
         <span
-          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${statusClasses[status]}`}
+          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background-primary ${statusClasses[status]}`}
         />
       )}
     </div>

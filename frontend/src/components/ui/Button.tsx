@@ -14,22 +14,22 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ): FunctionComponent => {
     const baseClasses =
-      'inline-flex items-center justify-center font-medium font-mono transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed';
+      'inline-flex items-center justify-center font-primary font-semibold transition-all duration-200 rounded-lg focus-ring disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variantClasses = {
       primary:
-        'bg-neutral-900 text-white hover:bg-neutral-800 active:bg-neutral-950 shadow-md hover:shadow-lg',
+        'bg-primary text-black hover:bg-secondary hover:shadow-[0_6px_16px_rgba(204,255,0,0.3)] hover:-translate-y-0.5 active:translate-y-0 shadow-[0_4px_12px_rgba(204,255,0,0.2)]',
       secondary:
-        'bg-neutral-100 text-neutral-950 hover:bg-neutral-200 active:bg-neutral-300 shadow-sm',
-      danger: 'bg-red-500 text-white hover:bg-red-600 active:bg-red-700 shadow-md hover:shadow-lg',
+        'bg-background-tertiary text-primary-text border border-default hover:bg-surface hover:border-secondary',
+      danger: 'bg-error text-white hover:bg-red-600 shadow-md hover:shadow-lg',
       ghost:
-        'bg-transparent text-neutral-900 hover:bg-neutral-50 active:bg-neutral-100 border border-neutral-200',
+        'bg-transparent text-primary-text border border-default hover:bg-background-tertiary hover:border-secondary',
     };
 
     const sizeClasses = {
       sm: 'px-3 py-1.5 text-sm gap-2',
-      md: 'px-4 py-2 text-base gap-2.5',
-      lg: 'px-6 py-3 text-lg gap-3',
+      md: 'px-4 py-2.5 text-sm gap-2.5',
+      lg: 'px-6 py-3 text-base gap-3',
     };
 
     return (
@@ -41,7 +41,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading && (
           <svg
-            className="animate-spin -ml-1 mr-2 h-4 w-4"
+            className="animate-spin h-4 w-4"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

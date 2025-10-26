@@ -556,32 +556,32 @@ export function ChatInterface() {
 
   if (!room) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 via-neutral-50 to-stone-50">
+      <div className="flex-1 flex items-center justify-center bg-background-primary">
         <div className="text-center">
-          <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <Hash className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 bg-background-tertiary rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg border border-default">
+            <Hash className="w-10 h-10 text-primary" />
           </div>
-          <h3 className="text-2xl font-bold text-black mb-3">Room not found</h3>
-          <p className="text-neutral-600">The room you're looking for doesn't exist.</p>
+          <h3 className="text-2xl font-bold text-primary-text mb-3">Room not found</h3>
+          <p className="text-secondary-text">The room you're looking for doesn't exist.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-zinc-50 via-neutral-50 to-stone-50">
+    <div className="flex-1 flex flex-col h-full bg-background-primary">
       {/* Chat Header - Sticky */}
-      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-neutral-200 px-6 py-4 flex items-center justify-between shadow-sm">
+      <div className="sticky top-0 z-10 bg-background-secondary/80 backdrop-blur-xl border-b border-default px-6 py-4 flex items-center justify-between shadow-lg shadow-black/5">
         <div className="flex items-center space-x-3">
-          <div className="w-11 h-11 bg-black rounded-xl flex items-center justify-center shadow-md">
-            <Hash className="w-6 h-6 text-white" />
+          <div className="w-11 h-11 bg-gradient-to-br from-primary/80 to-secondary rounded-xl flex items-center justify-center shadow-md">
+            <Hash className="w-6 h-6 text-black" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-black">{room.name}</h1>
-            <div className="flex items-center space-x-3 text-sm text-neutral-500">
-              <span className="font-medium">{members.length} members</span>
+            <h1 className="text-lg font-bold text-primary-text">{room.name}</h1>
+            <div className="flex items-center space-x-3 text-sm text-secondary-text">
+              <span className="font-primary font-medium">{members.length} members</span>
               {room.code && (
-                <span className="inline-flex items-center px-2.5 py-1 bg-neutral-900 text-white rounded-md text-xs font-semibold tracking-wide shadow-sm">
+                <span className="inline-flex items-center px-2.5 py-1 bg-primary/10 text-primary border border-primary/20 rounded-md text-xs font-primary font-semibold tracking-wide">
                   #{room.code}
                 </span>
               )}
@@ -590,12 +590,11 @@ export function ChatInterface() {
         </div>
 
         <div className="flex items-center space-x-2">
-
           <button
             onClick={() => setShowMembers(!showMembers)}
             className={`p-2.5 rounded-xl transition-all ${showMembers
-                ? 'bg-black text-white shadow-md'
-                : 'hover:bg-neutral-100 text-neutral-700'
+                ? 'bg-primary text-black shadow-md'
+                : 'hover:bg-background-tertiary text-secondary-text'
               }`}
             title="Members"
           >
@@ -623,7 +622,7 @@ export function ChatInterface() {
                 navigate({ to: '/' });
               }
             }}
-            className="px-4 py-2 bg-black text-white rounded-xl hover:bg-neutral-800 transition-all text-sm font-semibold shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-black/20"
+            className="btn-primary text-sm shadow-lg shadow-primary/10"
             title="Leave Room"
           >
             Leave Room
@@ -634,17 +633,17 @@ export function ChatInterface() {
       {/* Messages Area */}
       <div className="flex-1 flex min-h-0">
         {/* Messages */}
-        <div className="flex-1 flex flex-col min-h-0 bg-white/50">
+        <div className="flex-1 flex flex-col min-h-0 bg-background-secondary/30">
           {/* Messages Container - Scrollable */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
             {messages.length === 0 ? (
               <div className="flex-1 flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
-                  <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                    <Hash className="w-10 h-10 text-neutral-400" />
+                  <div className="w-20 h-20 bg-background-tertiary rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-default">
+                    <Hash className="w-10 h-10 text-muted-text" />
                   </div>
-                  <h3 className="text-xl font-bold text-black mb-3">Welcome to #{room?.name || 'room'}</h3>
-                  <p className="text-neutral-600">This is the beginning of your conversation.</p>
+                  <h3 className="text-xl font-bold text-primary-text mb-3">Welcome to #{room?.name || 'room'}</h3>
+                  <p className="text-secondary-text">This is the beginning of your conversation.</p>
                 </div>
               </div>
             ) : (
@@ -665,7 +664,7 @@ export function ChatInterface() {
                     {/* Date Divider */}
                     {showDate && (
                       <div className="flex items-center justify-center py-6">
-                        <div className="bg-neutral-100 text-neutral-700 text-xs font-semibold px-4 py-2 rounded-full flex items-center space-x-2 shadow-sm border border-neutral-200">
+                        <div className="bg-background-tertiary text-secondary-text text-xs font-primary font-semibold px-4 py-2 rounded-full flex items-center space-x-2 shadow-sm border border-default">
                           <Clock className="w-3.5 h-3.5" />
                           <span>{formatDate(message.createdAt)}</span>
                         </div>
@@ -678,8 +677,8 @@ export function ChatInterface() {
                         {/* Avatar */}
                         {!isOwnMessage && (
                           <div className={`w-9 h-9 flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
-                            <div className="w-9 h-9 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-xl flex items-center justify-center shadow-sm">
-                              <span className="text-sm font-bold text-white">
+                            <div className="w-9 h-9 bg-gradient-to-br from-secondary/60 to-primary/80 rounded-xl flex items-center justify-center shadow-sm">
+                              <span className="text-sm font-bold text-black">
                                 {message.author?.username?.charAt(0).toUpperCase() || 'U'}
                               </span>
                             </div>
@@ -690,7 +689,7 @@ export function ChatInterface() {
                         <div className={`${isOwnMessage ? 'ml-2' : 'mr-2'}`}>
                           {/* Author name for other users */}
                           {!isOwnMessage && showAvatar && (
-                            <div className="text-xs font-semibold text-neutral-700 mb-1.5 px-4">
+                            <div className="text-xs font-primary font-semibold text-secondary-text mb-1.5 px-4">
                               {message.author?.username || 'Anonymous User'}
                             </div>
                           )}
@@ -698,14 +697,14 @@ export function ChatInterface() {
                           <div
                             className={`px-5 py-3.5 rounded-2xl ${
                               isOwnMessage
-                                ? 'bg-black text-white shadow-lg shadow-black/10'
+                                ? 'bg-primary text-black shadow-lg shadow-primary/10'
                                 : isMentioned
-                                ? 'bg-green-50 border-2 border-green-300 text-neutral-900 shadow-lg shadow-green-500/30 ring-2 ring-green-400/20 animate-pulse-slow'
-                                : 'bg-white border-2 border-neutral-200 text-neutral-900 shadow-sm'
+                                ? 'bg-secondary/20 border-2 border-secondary text-primary-text shadow-lg shadow-secondary/30 ring-2 ring-secondary/20 animate-pulse-slow'
+                                : 'bg-background-tertiary border border-subtle text-primary-text shadow-sm'
                             }`}
                           >
-                            <p className="text-[15px] leading-relaxed">{message.content}</p>
-                            <div className={`text-[11px] mt-2 font-medium ${isOwnMessage ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                            <p className="text-[15px] leading-relaxed font-primary">{message.content}</p>
+                            <div className={`text-[11px] mt-2 font-primary font-medium ${isOwnMessage ? 'text-black/60' : 'text-secondary-text'}`}>
                               {formatTime(message.createdAt)}
                             </div>
                           </div>
@@ -721,12 +720,12 @@ export function ChatInterface() {
             {typingUsers.length > 0 && (
               <div className="flex justify-start mb-4">
                 <div className="flex items-center space-x-3 max-w-lg">
-                  <div className="w-9 h-9 bg-neutral-100 rounded-xl flex items-center justify-center border border-neutral-200">
-                    <div className="w-2 h-2 bg-neutral-500 rounded-full animate-pulse"></div>
+                  <div className="w-9 h-9 bg-background-tertiary rounded-xl flex items-center justify-center border border-default">
+                    <div className="w-2 h-2 bg-secondary rounded-full animate-pulse"></div>
                   </div>
-                  <div className="bg-white border-2 border-neutral-200 px-5 py-3.5 rounded-2xl shadow-sm">
+                  <div className="bg-background-tertiary border border-subtle px-5 py-3.5 rounded-2xl shadow-sm">
                     <div className="flex items-center space-x-3">
-                      <span className="text-sm text-neutral-700 font-medium">
+                      <span className="text-sm text-secondary-text font-primary font-medium">
                         {typingUsers.length === 1
                           ? `${typingUsers[0].username} is typing`
                           : typingUsers.length === 2
@@ -735,9 +734,9 @@ export function ChatInterface() {
                         }
                       </span>
                       <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 bg-secondary rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-secondary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-secondary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
                     </div>
                   </div>
@@ -750,7 +749,7 @@ export function ChatInterface() {
           </div>
 
           {/* Message Input */}
-          <div className="bg-white border-t-2 border-neutral-200 px-6 py-5 relative shadow-lg">
+          <div className="bg-background-secondary border-t border-default px-6 py-5 relative shadow-lg shadow-black/5">
             <form onSubmit={handleSendMessage} className="flex items-center space-x-3">
               <div className="flex-1 relative">
                 <input
@@ -760,7 +759,7 @@ export function ChatInterface() {
                   value={messageInput}
                   onChange={handleInputChange}
                   onBlur={handleInputBlur}
-                  className="w-full px-5 py-3.5 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-black placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all font-medium"
+                  className="input-base w-full font-primary"
                   autoComplete="off"
                 />
               </div>
@@ -769,8 +768,8 @@ export function ChatInterface() {
                 type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 className={`p-3 rounded-xl transition-all ${showEmojiPicker
-                    ? 'bg-neutral-900 text-white shadow-lg'
-                    : 'hover:bg-neutral-100 text-neutral-600'
+                    ? 'bg-primary text-black shadow-lg'
+                    : 'hover:bg-background-tertiary text-secondary-text'
                   }`}
                 title="Emoji"
               >
@@ -780,7 +779,7 @@ export function ChatInterface() {
               <button
                 type="submit"
                 disabled={!messageInput.trim()}
-                className="p-3 rounded-xl bg-black text-white hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-black/20"
+                className="p-3 rounded-xl bg-primary text-black hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/20"
                 title="Send Message"
               >
                 <Send className="w-5 h-5" />
@@ -789,19 +788,19 @@ export function ChatInterface() {
 
             {/* Mentions Dropdown */}
             {showMentionsList && (
-              <div className="absolute bottom-24 left-6 bg-white border-2 border-neutral-200 rounded-2xl shadow-2xl max-h-72 overflow-y-auto w-72 z-50">
+              <div className="absolute bottom-24 left-6 bg-background-tertiary border border-default rounded-2xl shadow-2xl max-h-72 overflow-y-auto w-72 z-50">
                 {/* @everyone option */}
                 <button
                   type="button"
                   onClick={() => handleMentionSelect('everyone')}
-                  className="w-full px-4 py-3.5 flex items-center space-x-3 hover:bg-neutral-50 transition-all border-b border-neutral-100 group"
+                  className="w-full px-4 py-3.5 flex items-center space-x-3 hover:bg-background-secondary transition-all border-b border-subtle group"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-neutral-700 to-neutral-900 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-secondary/60 to-primary/80 flex items-center justify-center text-black font-bold text-sm shadow-md">
                     @
                   </div>
                   <div className="flex-1 text-left">
-                    <div className="text-sm font-bold text-black group-hover:text-neutral-700 transition-colors">everyone</div>
-                    <div className="text-xs text-neutral-500">Mention all members</div>
+                    <div className="text-sm font-primary font-bold text-primary-text group-hover:text-primary transition-colors">everyone</div>
+                    <div className="text-xs font-primary text-secondary-text">Mention all members</div>
                   </div>
                 </button>
 
@@ -812,25 +811,25 @@ export function ChatInterface() {
                       key={member.id}
                       type="button"
                       onClick={() => handleMentionSelect(member.username || '')}
-                      className="w-full px-4 py-3.5 flex items-center space-x-3 hover:bg-neutral-50 transition-all group"
+                      className="w-full px-4 py-3.5 flex items-center space-x-3 hover:bg-background-secondary transition-all group"
                     >
                       <div className="relative">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-neutral-600 to-neutral-800 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-secondary/60 to-primary/80 flex items-center justify-center text-black font-bold text-sm shadow-sm">
                           {member.username?.[0]?.toUpperCase() || '?'}
                         </div>
-                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white shadow-sm ${member.isOnline ? 'bg-green-500' : 'bg-neutral-400'
+                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background-tertiary shadow-sm ${member.isOnline ? 'bg-success' : 'bg-muted-text'
                           }`}></div>
                       </div>
                       <div className="flex-1 text-left">
-                        <div className="text-sm font-semibold text-black group-hover:text-neutral-700 transition-colors">{member.username}</div>
-                        <div className="text-xs text-neutral-500 font-medium">
+                        <div className="text-sm font-primary font-semibold text-primary-text group-hover:text-primary transition-colors">{member.username}</div>
+                        <div className="text-xs font-primary text-secondary-text font-medium">
                           {member.isOnline ? 'Active' : 'Offline'}
                         </div>
                       </div>
                     </button>
                   ))
                 ) : (
-                  <div className="px-4 py-10 text-center text-neutral-500 text-sm font-medium">
+                  <div className="px-4 py-10 text-center text-secondary-text text-sm font-primary font-medium">
                     No members found
                   </div>
                 )}
@@ -848,9 +847,9 @@ export function ChatInterface() {
             {/* Loading indicator */}
             {isLoadingMessages && (
               <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
-                <div className="bg-neutral-100 text-neutral-600 text-xs px-3 py-1 rounded-full flex items-center space-x-2">
-                  <div className="w-3 h-3 border border-neutral-400 border-t-transparent rounded-full animate-spin"></div>
-                  <span>Loading messages...</span>
+                <div className="bg-background-tertiary text-secondary-text text-xs px-3 py-1 rounded-full flex items-center space-x-2 border border-default">
+                  <div className="w-3 h-3 border border-secondary border-t-transparent rounded-full animate-spin"></div>
+                  <span className="font-primary">Loading messages...</span>
                 </div>
               </div>
             )}
@@ -859,43 +858,43 @@ export function ChatInterface() {
 
         {/* Members Sidebar */}
         {showMembers && (
-          <div className="w-80 bg-gradient-to-b from-white to-neutral-50 border-l-2 border-neutral-200 flex flex-col shadow-2xl">
+          <div className="w-80 bg-background-secondary border-l border-default flex flex-col shadow-2xl">
             {/* Members List Section */}
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="p-5 border-b-2 border-neutral-200 bg-white">
-                <h3 className="text-xl font-bold text-black mb-1">Members</h3>
-                <p className="text-sm text-neutral-600 font-medium">{members.length} online</p>
+              <div className="p-5 border-b border-default bg-background-tertiary/50">
+                <h3 className="text-xl font-bold text-primary-text mb-1">Members</h3>
+                <p className="text-sm text-secondary-text font-primary font-medium">{members.length} online</p>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
                 {members.map((member) => {
                   const isActive = activeUsers.has(member.id);
                   const inVoice = voiceParticipants.includes(member.id);
                   return (
-                    <div key={member.id} className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white transition-all group border border-transparent hover:border-neutral-200 hover:shadow-sm">
+                    <div key={member.id} className="flex items-center space-x-3 p-3 rounded-xl hover:bg-background-tertiary transition-all group border border-transparent hover:border-subtle hover:shadow-sm">
                       <div className="relative">
-                        <div className="w-10 h-10 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-xl flex items-center justify-center shadow-sm">
-                          <span className="text-sm font-bold text-white">
+                        <div className="w-10 h-10 bg-gradient-to-br from-secondary/60 to-primary/80 rounded-xl flex items-center justify-center shadow-sm">
+                          <span className="text-sm font-bold text-black">
                             {member.username?.charAt(0).toUpperCase() || 'U'}
                           </span>
                         </div>
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ${isActive ? 'bg-green-500' : 'bg-neutral-400'
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-background-secondary shadow-sm ${isActive ? 'bg-success' : 'bg-muted-text'
                           }`}></div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2">
-                          <div className="text-sm font-semibold text-black truncate group-hover:text-neutral-700 transition-colors">
+                          <div className="text-sm font-primary font-semibold text-primary-text truncate group-hover:text-primary transition-colors">
                             {member.username}
                           </div>
                           {inVoice && (
-                            <div className="flex items-center bg-green-50 px-1.5 py-0.5 rounded-md">
-                              <Phone className="w-3 h-3 text-green-700" />
+                            <div className="flex items-center bg-success/10 px-1.5 py-0.5 rounded-md border border-success/20">
+                              <Phone className="w-3 h-3 text-success" />
                             </div>
                           )}
                         </div>
                         <div className="flex items-center space-x-1.5 mt-0.5">
-                          <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500' : 'bg-neutral-400'
+                          <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-success' : 'bg-muted-text'
                             }`}></div>
-                          <span className="text-xs text-neutral-500 font-medium">
+                          <span className="text-xs font-primary text-secondary-text font-medium">
                             {isActive ? 'Active' : 'Offline'}
                           </span>
                         </div>
@@ -907,13 +906,13 @@ export function ChatInterface() {
             </div>
 
             {/* Voice Chat Section */}
-            <div className="border-t-2 border-neutral-200 bg-white">
+            <div className="border-t border-default bg-background-tertiary/50">
               <div className="p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-bold text-black">Voice Chat</h4>
+                  <h4 className="text-sm font-primary font-bold text-primary-text">Voice Chat</h4>
                   {isInVoiceCall && (
-                    <div className="flex items-center space-x-1.5 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
-                      <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
+                    <div className="flex items-center space-x-1.5 text-xs font-primary font-semibold text-success bg-success/10 px-2.5 py-1 rounded-full border border-success/20">
+                      <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
                       <span>Connected</span>
                     </div>
                   )}
@@ -927,7 +926,7 @@ export function ChatInterface() {
                         setIsInVoiceCall(true);
                         setVoiceParticipants([...voiceParticipants, user?.id || '']);
                       }}
-                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all font-semibold text-sm shadow-lg shadow-green-600/20 hover:shadow-xl hover:shadow-green-600/30"
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-success hover:bg-success/80 text-white rounded-xl transition-all font-primary font-semibold text-sm shadow-lg shadow-success/20 hover:shadow-xl hover:shadow-success/30"
                     >
                       <Phone className="w-4 h-4" />
                       <span>Join Voice Call</span>
@@ -938,9 +937,9 @@ export function ChatInterface() {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => setIsMuted(!isMuted)}
-                          className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl transition-all text-sm font-semibold shadow-sm ${isMuted
-                              ? 'bg-red-50 text-red-700 hover:bg-red-100 border-2 border-red-200'
-                              : 'bg-neutral-100 text-black hover:bg-neutral-200 border-2 border-neutral-200'
+                          className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl transition-all text-sm font-primary font-semibold shadow-sm ${isMuted
+                              ? 'bg-error/10 text-error hover:bg-error/20 border border-error/20'
+                              : 'bg-background-tertiary text-primary-text hover:bg-background-secondary border border-default'
                             }`}
                         >
                           {isMuted ? (
@@ -961,7 +960,7 @@ export function ChatInterface() {
                             setIsMuted(false);
                             setVoiceParticipants(voiceParticipants.filter(id => id !== user?.id));
                           }}
-                          className="px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-lg shadow-red-600/20"
+                          className="px-3 py-2.5 bg-error hover:bg-error/80 text-white rounded-xl transition-all shadow-lg shadow-error/20"
                           title="Leave Voice Call"
                         >
                           <PhoneOff className="w-4 h-4" />
@@ -971,28 +970,28 @@ export function ChatInterface() {
                       {/* Voice Participants */}
                       {voiceParticipants.length > 0 && (
                         <div className="mt-4">
-                          <div className="text-xs font-bold text-black mb-2.5">
+                          <div className="text-xs font-primary font-bold text-primary-text mb-2.5">
                             In Call ({voiceParticipants.length})
                           </div>
                           <div className="space-y-1.5 max-h-28 overflow-y-auto">
                             {members
                               .filter(m => voiceParticipants.includes(m.id))
                               .map((member) => (
-                                <div key={member.id} className="flex items-center space-x-2.5 p-2 rounded-lg bg-neutral-50 border border-neutral-200">
-                                  <div className="w-7 h-7 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-lg flex items-center justify-center shadow-sm">
-                                    <span className="text-xs font-bold text-white">
+                                <div key={member.id} className="flex items-center space-x-2.5 p-2 rounded-lg bg-background-tertiary border border-default">
+                                  <div className="w-7 h-7 bg-gradient-to-br from-secondary/60 to-primary/80 rounded-lg flex items-center justify-center shadow-sm">
+                                    <span className="text-xs font-bold text-black">
                                       {member.username?.charAt(0).toUpperCase() || 'U'}
                                     </span>
                                   </div>
-                                  <span className="text-xs text-black flex-1 truncate font-medium">
+                                  <span className="text-xs font-primary text-primary-text flex-1 truncate font-medium">
                                     {member.username}
                                     {member.id === user?.id && ' (You)'}
                                   </span>
                                   <div className="flex items-center">
                                     {member.id === user?.id && isMuted ? (
-                                      <MicOff className="w-3 h-3 text-red-600" />
+                                      <MicOff className="w-3 h-3 text-error" />
                                     ) : (
-                                      <Mic className="w-3 h-3 text-green-600" />
+                                      <Mic className="w-3 h-3 text-success" />
                                     )}
                                   </div>
                                 </div>

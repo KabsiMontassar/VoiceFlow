@@ -44,7 +44,7 @@ export function AppLayout() {
   );
 
   return (
-    <div className="h-screen bg-white flex overflow-hidden">
+    <div className="h-screen bg-background-primary flex overflow-hidden">
       {/* Professional Sidebar */}
       <div className={`
         ${isCollapsed ? 'w-16' : 'w-80'} 
@@ -57,7 +57,7 @@ export function AppLayout() {
         <div className="h-16 flex items-center justify-between px-4 border-b border-neutral-800">
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20">
                 <MessageSquare className="w-5 h-5 text-neutral-950" />
               </div>
               <span className="text-white font-medium text-lg">VoiceFlow</span>
@@ -208,7 +208,7 @@ export function AppLayout() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col bg-neutral-50 overflow-hidden">
+      <div className="flex-1 flex flex-col bg-background-primary overflow-hidden">
         <Outlet />
       </div>
     </div>

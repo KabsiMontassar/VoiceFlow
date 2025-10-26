@@ -46,11 +46,11 @@ export default function StatsCards({ totalRooms, totalMembers, totalMessages }: 
         };
 
         return (
-          <div key={index} className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+          <div key={index} className="card p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">{stat.label}</p>
-                <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
+                <p className="text-sm font-primary font-medium text-secondary-text">{stat.label}</p>
+                <p className="text-2xl font-bold text-primary-text">{stat.value}</p>
               </div>
               <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClasses[stat.color as keyof typeof colorClasses]}`}>
                 <Icon className="w-6 h-6" />

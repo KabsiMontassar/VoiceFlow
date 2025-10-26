@@ -131,45 +131,45 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
   return (
     <div
       ref={pickerRef}
-      className="bg-white border border-neutral-200 rounded-lg shadow-lg z-50 w-80 flex flex-col"
+      className="bg-background-tertiary border border-default rounded-lg shadow-2xl z-50 w-80 flex flex-col"
       style={{ ...positionStyles, height: '400px' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-neutral-200 flex-shrink-0">
-        <h3 className="text-sm font-medium text-neutral-900">Emoji Picker</h3>
+      <div className="flex items-center justify-between p-3 border-b border-subtle flex-shrink-0">
+        <h3 className="text-sm font-primary font-medium text-primary-text">Emoji Picker</h3>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg hover:bg-neutral-100 transition-colors"
+          className="p-1 rounded-lg hover:bg-background-secondary transition-colors"
         >
-          <X className="w-4 h-4 text-neutral-500" />
+          <X className="w-4 h-4 text-secondary-text" />
         </button>
       </div>
 
       {/* Search */}
-      <div className="p-3 border-b border-neutral-200 flex-shrink-0">
+      <div className="p-3 border-b border-subtle flex-shrink-0">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-text" />
           <input
             type="text"
             placeholder="Search emojis..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-transparent"
+            className="input-base w-full pl-10 text-sm font-primary"
           />
         </div>
       </div>
 
       {/* Categories */}
       {!searchQuery && (
-        <div className="flex overflow-x-auto border-b border-neutral-200 flex-shrink-0">
+        <div className="flex overflow-x-auto border-b border-subtle flex-shrink-0">
           {EMOJI_CATEGORIES.map((category, index) => (
             <button
               key={category.name}
               onClick={() => setSelectedCategory(index)}
-              className={`flex-shrink-0 px-3 py-2 text-xs font-medium transition-colors ${
+              className={`flex-shrink-0 px-3 py-2 text-xs font-primary font-medium transition-colors ${
                 selectedCategory === index
-                  ? 'text-neutral-900 border-b-2 border-neutral-900'
-                  : 'text-neutral-600 hover:text-neutral-900'
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-secondary-text hover:text-primary-text'
               }`}
             >
               {category.name}
@@ -185,7 +185,7 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
             <button
               key={`${emoji}-${index}`}
               onClick={() => handleEmojiClick(emoji)}
-              className="p-2 rounded-lg hover:bg-neutral-100 transition-colors text-lg"
+              className="p-2 rounded-lg hover:bg-background-secondary transition-colors text-lg"
               title={emoji}
             >
               {emoji}
@@ -194,9 +194,9 @@ export default function EmojiPicker({ isOpen, onClose, onEmojiSelect, position }
         </div>
 
         {filteredEmojis.length === 0 && searchQuery && (
-          <div className="text-center py-8 text-neutral-500">
+          <div className="text-center py-8 text-secondary-text">
             <span className="text-2xl">🤔</span>
-            <p className="mt-2 text-sm">No emojis found</p>
+            <p className="mt-2 text-sm font-primary">No emojis found</p>
           </div>
         )}
       </div>

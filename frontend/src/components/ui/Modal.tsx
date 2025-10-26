@@ -30,19 +30,19 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps): F
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-xl shadow-xl w-full ${sizeClasses[size]}`}
+        className={`bg-background-tertiary border border-default rounded-xl shadow-2xl w-full ${sizeClasses[size]} animate-slide-in`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className="flex items-center justify-between p-6 border-b border-slate-100">
-            <h2 className="text-xl font-bold text-slate-950 font-serif">{title}</h2>
+          <div className="flex items-center justify-between p-6 border-b border-subtle">
+            <h2 className="text-xl font-bold text-primary-text font-primary">{title}</h2>
             <button
               onClick={onClose}
-              className="text-slate-500 hover:text-slate-950 transition-colors"
+              className="text-muted hover:text-primary-text hover:bg-background-secondary p-2 rounded-lg transition-all"
             >
               <svg
                 className="w-6 h-6"

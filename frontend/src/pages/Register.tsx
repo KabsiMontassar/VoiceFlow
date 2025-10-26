@@ -58,72 +58,72 @@ const Register = (): FunctionComponent => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-neutral-50 to-stone-50 flex">
+    <div className="min-h-screen bg-background-primary flex">
       {/* Left side - Brand */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-zinc-900 via-neutral-900 to-black flex-col justify-center px-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-background-secondary via-background-primary to-black flex-col justify-center px-12 relative overflow-hidden">
         {/* Subtle gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
         
         <div className="max-w-md relative z-10">
           <div className="mb-8">
-            <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center mb-4 border border-white/20">
-              <div className="w-6 h-6 bg-white rounded-md"></div>
+            <div className="w-12 h-12 bg-primary/10 backdrop-blur-sm rounded-xl flex items-center justify-center mb-4 border border-primary/20">
+              <div className="w-6 h-6 bg-primary rounded-md"></div>
             </div>
-            <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">Join VoiceFlow</h1>
-            <div className="h-1 w-20 bg-gradient-to-r from-white to-white/30 rounded-full"></div>
+            <h1 className="text-5xl font-bold text-primary-text mb-4 tracking-tight font-primary">Join VoiceFlow</h1>
+            <div className="h-1 w-20 bg-gradient-to-r from-primary to-secondary rounded-full"></div>
           </div>
-          <p className="text-xl text-neutral-300 mb-12 leading-relaxed">
+          <p className="text-xl text-muted mb-12 leading-relaxed font-primary">
             Start collaborating with your team in minutes with our professional communication platform.
           </p>
-          <div className="space-y-4 text-neutral-400">
+          <div className="space-y-4 text-muted">
             <div className="flex items-center space-x-3 group">
-              <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                <Check className="w-4 h-4 text-white" />
+              <div className="w-6 h-6 rounded-lg bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20">
+                <Check className="w-4 h-4 text-primary" />
               </div>
-              <span className="group-hover:text-neutral-200 transition-colors">Free 30-day trial</span>
+              <span className="group-hover:text-primary-text transition-colors font-primary">Free 30-day trial</span>
             </div>
             <div className="flex items-center space-x-3 group">
-              <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                <Check className="w-4 h-4 text-white" />
+              <div className="w-6 h-6 rounded-lg bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20">
+                <Check className="w-4 h-4 text-primary" />
               </div>
-              <span className="group-hover:text-neutral-200 transition-colors">No credit card required</span>
+              <span className="group-hover:text-primary-text transition-colors font-primary">No credit card required</span>
             </div>
             <div className="flex items-center space-x-3 group">
-              <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                <Check className="w-4 h-4 text-white" />
+              <div className="w-6 h-6 rounded-lg bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20">
+                <Check className="w-4 h-4 text-primary" />
               </div>
-              <span className="group-hover:text-neutral-200 transition-colors">Cancel anytime</span>
+              <span className="group-hover:text-primary-text transition-colors font-primary">Cancel anytime</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Right side - Form */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-12 bg-white">
+      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-12 bg-background-secondary">
         <div className="w-full max-w-md mx-auto">
           {/* Back button */}
           <button
             onClick={() => navigate({ to: '/' })}
-            className="flex items-center text-neutral-500 hover:text-black mb-12 transition-all group"
+            className="flex items-center text-muted hover:text-primary-text mb-12 transition-all group"
           >
             <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-sm font-medium">Back to home</span>
+            <span className="text-sm font-medium font-primary">Back to home</span>
           </button>
 
           {/* Header */}
           <div className="mb-10">
-            <h2 className="text-4xl font-bold text-black mb-3 tracking-tight">Create account</h2>
-            <p className="text-neutral-600">Get started with your free trial today</p>
+            <h2 className="text-4xl font-bold text-primary-text mb-3 tracking-tight font-primary">Create account</h2>
+            <p className="text-muted font-primary">Get started with your free trial today</p>
           </div>
 
           {/* Register Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             {errors.submit && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-start space-x-3">
-                <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="p-4 bg-error/10 border border-error/20 rounded-xl text-error text-sm flex items-start space-x-3">
+                <div className="w-5 h-5 rounded-full bg-error/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <span className="text-xs">!</span>
                 </div>
-                <span>{errors.submit}</span>
+                <span className="font-primary">{errors.submit}</span>
               </div>
             )}
 
@@ -178,16 +178,16 @@ const Register = (): FunctionComponent => {
               <input
                 type="checkbox"
                 id="terms"
-                className="w-4 h-4 text-black border-neutral-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0 transition-all mt-1"
+                className="w-4 h-4 text-primary bg-background-secondary border-default rounded focus:ring-2 focus:ring-primary focus:ring-offset-0 transition-all mt-1"
                 required
               />
-              <label htmlFor="terms" className="text-sm text-neutral-700 leading-relaxed">
+              <label htmlFor="terms" className="text-sm text-muted leading-relaxed font-primary">
                 I agree to the{' '}
-                <a href="#" className="text-black font-medium hover:text-neutral-700 transition-colors">
+                <a href="#" className="text-primary font-medium hover:text-secondary transition-colors">
                   Terms of Service
                 </a>{' '}
                 and{' '}
-                <a href="#" className="text-black font-medium hover:text-neutral-700 transition-colors">
+                <a href="#" className="text-primary font-medium hover:text-secondary transition-colors">
                   Privacy Policy
                 </a>
               </label>
@@ -198,7 +198,7 @@ const Register = (): FunctionComponent => {
               variant="primary"
               size="lg"
               isLoading={registerMutation.isPending}
-              className="w-full bg-black hover:bg-neutral-800 text-white shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-black/20 transition-all"
+              className="w-full"
             >
               Create Account
             </Button>
@@ -207,10 +207,10 @@ const Register = (): FunctionComponent => {
           {/* Divider */}
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-neutral-200"></div>
+              <div className="w-full border-t border-default"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-neutral-500">Already have an account?</span>
+              <span className="px-4 bg-background-secondary text-muted font-primary">Already have an account?</span>
             </div>
           </div>
 
@@ -218,7 +218,7 @@ const Register = (): FunctionComponent => {
           <div className="text-center">
             <button
               onClick={() => navigate({ to: '/login' })}
-              className="text-black font-medium hover:text-neutral-700 transition-colors inline-flex items-center group"
+              className="text-primary font-medium hover:text-secondary transition-colors inline-flex items-center group font-primary"
             >
               Sign in
               <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>

@@ -58,7 +58,7 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
   onLeave,
 }) => {
   return (
-    <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-primary-200">
+    <div className="flex items-center gap-2 p-3 bg-background-tertiary rounded-lg border border-default">
       <Button
         variant={isMuted ? 'danger' : 'ghost'}
         size="sm"
@@ -87,7 +87,7 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
       </Button>
 
       <div className="flex-1 text-center">
-        <span className="text-xs font-mono text-primary-600">
+        <span className="text-xs font-primary text-secondary-text">
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>
       </div>
@@ -120,7 +120,7 @@ const VoiceParticipant: React.FC<VoiceParticipantProps> = ({ participant }) => {
   const { username, isMuted, isConnected, audioLevel } = participant;
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-primary-200">
+    <div className="flex items-center gap-3 p-3 bg-background-tertiary rounded-lg border border-default">
       <div className="relative">
         <Avatar
           initials={username.substring(0, 2).toUpperCase()}
@@ -128,7 +128,7 @@ const VoiceParticipant: React.FC<VoiceParticipantProps> = ({ participant }) => {
           status={isConnected ? 'active' : 'inactive'}
         />
         {isMuted && (
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center">
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-error text-white rounded-full flex items-center justify-center">
             <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 24 24">
               <path d="M19 19L5 5m0 0v14l9-7-9-7z" />
             </svg>
@@ -137,15 +137,15 @@ const VoiceParticipant: React.FC<VoiceParticipantProps> = ({ participant }) => {
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-mono font-bold text-primary-950 truncate">
+        <p className="text-sm font-primary font-bold text-primary-text truncate">
           {username}
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-primary-600">
+          <span className="text-xs font-primary text-secondary-text">
             {isMuted ? 'Muted' : 'Unmuted'}
           </span>
           {!isMuted && isConnected && (
-            <div className="text-green-500">
+            <div className="text-success">
               <AudioLevelMeter level={audioLevel} size="sm" />
             </div>
           )}
@@ -301,7 +301,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ roomId, isActive, onToggle }) => 
 
   if (!isActive) {
     return (
-      <div className="p-4 bg-primary-50 border-t border-primary-200">
+      <div className="p-4 bg-background-secondary border-t border-default">
         <Button
           variant="primary"
           onClick={onToggle}
@@ -312,32 +312,32 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ roomId, isActive, onToggle }) => 
           Join Voice Chat
         </Button>
         {error && (
-          <p className="text-sm text-red-600 font-mono mt-2">{error}</p>
+          <p className="text-sm text-error font-primary mt-2">{error}</p>
         )}
       </div>
     );
   }
 
   return (
-    <div className="border-t border-primary-200 bg-primary-50">
+    <div className="border-t border-default bg-background-secondary">
       {error && (
-        <div className="p-3 bg-red-50 border-l-4 border-red-400 text-red-700 text-sm font-mono">
+        <div className="p-3 bg-error/10 border-l-4 border-error text-error text-sm font-primary">
           {error}
         </div>
       )}
 
       <div className="p-4 space-y-4">
         {/* Local Audio Level */}
-        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
           <Avatar initials="You" size="sm" status="active" />
           <div className="flex-1">
-            <p className="text-sm font-mono font-bold text-primary-950">You</p>
+            <p className="text-sm font-primary font-bold text-primary-text">You</p>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-primary-600">
+              <span className="text-xs font-primary text-secondary-text">
                 {isMuted ? 'Muted' : 'Unmuted'}
               </span>
               {!isMuted && (
-                <div className="text-blue-500">
+                <div className="text-primary">
                   <AudioLevelMeter level={localAudioLevel} size="sm" />
                 </div>
               )}
@@ -358,7 +358,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ roomId, isActive, onToggle }) => 
 
         {/* Push to Talk Instructions */}
         {isPushToTalk && (
-          <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs font-mono text-yellow-800 text-center">
+          <div className="p-2 bg-secondary/10 border border-secondary/20 rounded text-xs font-primary text-primary-text text-center">
             Hold SPACE to talk
           </div>
         )}
@@ -366,7 +366,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ roomId, isActive, onToggle }) => 
         {/* Voice Participants */}
         {voiceParticipants.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-mono font-bold text-primary-950">
+            <h4 className="text-sm font-primary font-bold text-primary-text">
               Voice Participants ({voiceParticipants.length})
             </h4>
             {voiceParticipants.map((participant) => (
@@ -378,14 +378,14 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ roomId, isActive, onToggle }) => 
         {/* Connection Status */}
         <div className="text-center">
           {isConnecting ? (
-            <div className="flex items-center justify-center gap-2 text-primary-600">
-              <div className="animate-spin w-4 h-4 border-2 border-primary-200 border-t-primary-600 rounded-full" />
-              <span className="text-xs font-mono">Connecting...</span>
+            <div className="flex items-center justify-center gap-2 text-secondary-text">
+              <div className="animate-spin w-4 h-4 border-2 border-default border-t-primary rounded-full" />
+              <span className="text-xs font-primary">Connecting...</span>
             </div>
           ) : isConnected ? (
-            <span className="text-xs font-mono text-green-600">✓ Connected to voice</span>
+            <span className="text-xs font-primary text-success">✓ Connected to voice</span>
           ) : (
-            <span className="text-xs font-mono text-red-600">⚠ Disconnected</span>
+            <span className="text-xs font-primary text-error">⚠ Disconnected</span>
           )}
         </div>
       </div>

@@ -121,34 +121,34 @@ const Dashboard = (): FunctionComponent => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-neutral-50 to-stone-50">
+    <div className="min-h-screen bg-background-primary">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-neutral-200/60 sticky top-0 z-40 shadow-sm">
+      <header className="bg-background-secondary/80 backdrop-blur-xl border-b border-default sticky top-0 z-40 shadow-lg shadow-black/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-black rounded-lg flex items-center justify-center">
-                <div className="w-4 h-4 bg-white rounded-sm"></div>
+              <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
+                <div className="w-4 h-4 bg-black rounded-sm"></div>
               </div>
-              <h1 className="text-2xl font-bold text-black tracking-tight">VoiceFlow</h1>
+              <h1 className="text-2xl font-bold text-primary-text tracking-tight font-primary">VoiceFlow</h1>
             </div>
 
             <nav className="hidden md:flex items-center gap-1">
-              <a href="#" className="px-4 py-2 text-sm font-medium text-black bg-neutral-100 rounded-lg transition-all">
+              <a href="#" className="nav-link nav-link-active">
                 Dashboard
               </a>
-              <a href="#" className="px-4 py-2 text-sm font-medium text-neutral-600 hover:text-black hover:bg-neutral-50 rounded-lg transition-all">
+              <a href="#" className="nav-link">
                 Rooms
               </a>
-              <a href="#" className="px-4 py-2 text-sm font-medium text-neutral-600 hover:text-black hover:bg-neutral-50 rounded-lg transition-all">
+              <a href="#" className="nav-link">
                 Settings
               </a>
             </nav>
 
             <div className="flex items-center gap-3">
               <div className="hidden sm:block text-right">
-                <p className="text-sm font-semibold text-black">{user?.username}</p>
-                <p className="text-xs text-neutral-500">{user?.email}</p>
+                <p className="text-sm font-semibold text-primary-text font-primary">{user?.username}</p>
+                <p className="text-xs text-muted font-primary">{user?.email}</p>
               </div>
               <Avatar initials={user?.username?.substring(0, 2).toUpperCase() || 'U'} status="active" />
             </div>
@@ -160,10 +160,10 @@ const Dashboard = (): FunctionComponent => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Welcome Section */}
         <div className="mb-12">
-          <h2 className="text-4xl font-bold text-black mb-3 tracking-tight">
+          <h2 className="text-4xl font-bold text-primary-text mb-3 tracking-tight font-primary">
             Welcome back, {user?.username}!
           </h2>
-          <p className="text-neutral-600 text-lg">
+          <p className="text-muted text-lg font-primary">
             Manage your rooms and connect with your team
           </p>
         </div>
@@ -174,7 +174,6 @@ const Dashboard = (): FunctionComponent => {
             variant="primary"
             size="lg"
             onClick={() => setShowCreateRoom(true)}
-            className="bg-black hover:bg-neutral-800 text-white shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-black/20 transition-all"
           >
             <span className="text-lg mr-2">+</span>
             Create New Room
@@ -183,7 +182,6 @@ const Dashboard = (): FunctionComponent => {
             variant="secondary"
             size="lg"
             onClick={() => setShowJoinRoom(true)}
-            className="border-2 border-neutral-200 hover:border-black hover:bg-neutral-50 transition-all"
           >
             Join Room
           </Button>
@@ -193,21 +191,21 @@ const Dashboard = (): FunctionComponent => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {rooms.length > 0 ? (
             rooms.map((room: any) => (
-              <Card key={room.id} variant="default" className="hover:shadow-2xl hover:shadow-black/10 transition-all duration-300 border-neutral-200 bg-white group">
+              <Card key={room.id} variant="default" className="hover:shadow-[0_8px_24px_rgba(201,239,49,0.15)] group">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-black mb-2 group-hover:text-neutral-700 transition-colors">{room.name}</h3>
-                    <p className="text-sm text-neutral-600 leading-relaxed">
+                    <h3 className="text-xl font-bold text-primary-text mb-2 group-hover:text-primary transition-colors font-primary">{room.name}</h3>
+                    <p className="text-sm text-muted leading-relaxed font-primary">
                       {room.description || 'No description'}
                     </p>
                     <div className="flex items-center gap-2 mt-3">
-                      <span className="text-xs text-neutral-500 font-medium">Code:</span>
-                      <span className="inline-block px-3 py-1.5 bg-neutral-100 text-black rounded-lg text-xs font-bold tracking-wider border border-neutral-200">
+                      <span className="text-xs text-muted font-medium font-primary">Code:</span>
+                      <span className="inline-block px-3 py-1.5 bg-background-secondary text-primary rounded-lg text-xs font-bold tracking-wider border border-primary/20 font-primary">
                         {room.code}
                       </span>
                       <button
                         onClick={() => copyRoomCode(room.code)}
-                        className="p-1.5 text-neutral-400 hover:text-black hover:bg-neutral-100 rounded-md transition-all"
+                        className="p-1.5 text-muted hover:text-primary hover:bg-background-secondary rounded-md transition-all"
                         title="Copy room code"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,20 +214,20 @@ const Dashboard = (): FunctionComponent => {
                       </button>
                     </div>
                   </div>
-                  <span className="inline-flex items-center px-3 py-1.5 bg-neutral-900 text-white rounded-full text-xs font-semibold shadow-sm">
+                  <span className="inline-flex items-center px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-semibold shadow-sm border border-primary/20 font-primary">
                     {room.memberCount || 0}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
-                  <span className="text-xs text-neutral-500 font-medium">
+                <div className="flex items-center justify-between pt-4 border-t border-subtle">
+                  <span className="text-xs text-muted font-medium font-primary">
                     {new Date(room.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
                   <Button 
                     variant="ghost" 
                     size="sm"
                     onClick={() => enterRoom(room.id)}
-                    className="text-black hover:bg-neutral-900 hover:text-white transition-all font-semibold"
+                    className="hover:text-primary font-primary"
                   >
                     Enter →
                   </Button>
@@ -237,11 +235,11 @@ const Dashboard = (): FunctionComponent => {
               </Card>
             ))
           ) : (
-            <Card className="col-span-full text-center py-16 border-2 border-dashed border-neutral-300 bg-white/50">
+            <Card className="col-span-full text-center py-16 border-2 border-dashed border-default bg-background-tertiary/50">
               <div className="text-center">
-                <div className="w-20 h-20 mx-auto mb-6 bg-neutral-100 rounded-2xl flex items-center justify-center">
+                <div className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20">
                   <svg
-                    className="w-10 h-10 text-neutral-400"
+                    className="w-10 h-10 text-primary"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -254,14 +252,13 @@ const Dashboard = (): FunctionComponent => {
                     />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-black mb-3">No rooms yet</h3>
-                <p className="text-neutral-600 mb-6 max-w-sm mx-auto">
+                <h3 className="text-2xl font-bold text-primary-text mb-3 font-primary">No rooms yet</h3>
+                <p className="text-muted mb-6 max-w-sm mx-auto font-primary">
                   Create your first room to start collaborating with your team
                 </p>
                 <Button
                   variant="primary"
                   onClick={() => setShowCreateRoom(true)}
-                  className="bg-black hover:bg-neutral-800 text-white shadow-lg shadow-black/10"
                 >
                   <span className="text-lg mr-2">+</span>
                   Create Room
