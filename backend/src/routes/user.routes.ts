@@ -13,16 +13,16 @@ const userController = new UserController();
 // Search users
 router.get('/search', userController.searchUsers);
 
-// Get user profile by ID
-router.get('/:userId', userController.getUserProfile);
-
 /**
  * Protected routes - require authentication
  */
 router.use(authMiddleware);
 
-// Get current user profile
+// Get current user profile (must be before /:userId to avoid matching "me" as userId)
 router.get('/me', userController.getMyProfile);
+
+// Get user profile by ID
+router.get('/:userId', userController.getUserProfile);
 
 // Update current user profile
 router.patch('/me', userController.updateProfile);

@@ -63,16 +63,42 @@ export default function Settings() {
 
   // Load initial data
   useEffect(() => {
-    if (user) {
-        console.log(user)
-      setSelectedAvatar(user.avatarUrl || 'avatar-1');
-      setUsername(user.username || '');
-      setBio(user.bio || '');
-      setCountry(user.country || '');
-      setAllowFriendRequests(user.settings?.allowFriendRequests ?? true);
-      setShowOnlineStatus(user.settings?.showOnlineStatus ?? true);
-    }
-  }, [user]);
+    const loadUserProfile = async () => {
+      try {
+        // Fetch fresh user data from the server
+        const response = await apiClient.getMyProfile();
+        if (response.success && response.data) {
+          const userData = response.data as any;
+          console.log('Loaded user profile:', userData);
+          
+          // Update auth store with fresh data
+          setUser(userData);
+          
+          // Update local state
+          setSelectedAvatar(userData.avatarUrl || 'avatar-1');
+          setUsername(userData.username || '');
+          setBio(userData.bio || '');
+          setCountry(userData.country || '');
+          setAllowFriendRequests(userData.settings?.allowFriendRequests ?? true);
+          setShowOnlineStatus(userData.settings?.showOnlineStatus ?? true);
+        }
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+        // Fallback to using the user data from store
+        if (user) {
+          setSelectedAvatar(user.avatarUrl || 'avatar-1');
+          setUsername(user.username || '');
+          setBio(user.bio || '');
+          setCountry(user.country || '');
+          setAllowFriendRequests(user.settings?.allowFriendRequests ?? true);
+          setShowOnlineStatus(user.settings?.showOnlineStatus ?? true);
+        }
+      }
+    };
+    
+    loadUserProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDeleteAccount = () => {
     setShowDeleteModal(true);
