@@ -18,6 +18,7 @@ import { socketClient } from '../../services/socket';
 import { apiClient } from '../../services/api';
 import { MessageType } from '../../../../shared/src/types';
 import EmojiPicker from '../ui/EmojiPicker';
+import Avatar from '../ui/Avatar';
 
 interface TypingUser {
   userId: string;
@@ -131,6 +132,7 @@ export function ChatInterface() {
                 id: memberData.user.id,
                 username: memberData.user.username,
                 email: memberData.user.email,
+                avatarUrl: memberData.user.avatarUrl,
                 joinedAt: memberData.joinedAt,
                 role: memberData.role
               };
@@ -184,7 +186,7 @@ export function ChatInterface() {
             id: message.user.id || message.user.userId,
             username: message.user.username,
             email: message.user.email,
-            avatarUrl: null,
+            avatarUrl: message.user.avatarUrl || null,
             status: 'active',
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -280,6 +282,7 @@ export function ChatInterface() {
               id: data.user.id,
               username: data.user.username,
               email: data.user.email,
+              avatarUrl: data.user.avatarUrl,
               role: 'member'
             }];
           }
@@ -344,6 +347,7 @@ export function ChatInterface() {
           id: userPresence.userId,
           username: userPresence.username || userPresence.userId,
           email: userPresence.email || '',
+          avatarUrl: userPresence.avatarUrl || null,
           status: userPresence.status
         }));
 
@@ -385,6 +389,7 @@ export function ChatInterface() {
           id: userPresence.userId,
           username: userPresence.username || userPresence.userId,
           email: userPresence.email || '',
+          avatarUrl: userPresence.avatarUrl || null,
           status: userPresence.status
         }));
         console.log('[ChatInterface] Users with info:', usersWithInfo);
@@ -743,11 +748,11 @@ export function ChatInterface() {
                         {/* Avatar */}
                         {!isOwnMessage && (
                           <div className={`w-9 h-9 flex-shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
-                            <div className="w-9 h-9 bg-gradient-to-br from-secondary/60 to-primary/80 rounded-xl flex items-center justify-center shadow-sm">
-                              <span className="text-sm font-bold text-black">
-                                {message.author?.username?.charAt(0).toUpperCase() || 'U'}
-                              </span>
-                            </div>
+                            <Avatar
+                              avatarId={message.author?.avatarUrl}
+                              initials={message.author?.username?.charAt(0).toUpperCase() || 'U'}
+                              size="sm"
+                            />
                           </div>
                         )}
 
@@ -941,13 +946,12 @@ export function ChatInterface() {
                   return (
                     <div key={member.id} className="flex items-center space-x-3 p-3 rounded-xl hover:bg-background-tertiary transition-all group border border-transparent hover:border-subtle hover:shadow-sm">
                       <div className="relative">
-                        <div className="w-10 h-10 bg-gradient-to-br from-secondary/60 to-primary/80 rounded-xl flex items-center justify-center shadow-sm">
-                          <span className="text-sm font-bold text-black">
-                            {member.username?.charAt(0).toUpperCase() || 'U'}
-                          </span>
-                        </div>
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-background-secondary shadow-sm ${isActive ? 'bg-success' : 'bg-muted-text'
-                          }`}></div>
+                        <Avatar
+                          avatarId={member.avatarUrl || undefined}
+                          initials={member.username?.charAt(0).toUpperCase() || 'U'}
+                          size="md"
+                          status={isActive ? 'active' : 'inactive'}
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2">

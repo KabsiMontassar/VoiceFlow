@@ -387,7 +387,7 @@ export class PresenceService {
       const { UserModel } = await import('../models');
       const dbUsers = await UserModel.findAll({
         where: { id: Array.from(userIds) },
-        attributes: ['id', 'username', 'email']
+        attributes: ['id', 'username', 'email', 'avatarUrl']
       });
       
       const userMap = new Map(dbUsers.map(u => [u.id, u]));
@@ -409,6 +409,7 @@ export class PresenceService {
             userId,
             username: dbUser?.username || userId,
             email: dbUser?.email || '',
+            avatarUrl: dbUser?.avatarUrl || null,
             status: globalStatus as UserPresenceStatus, // Use global status from Redis
             lastSeen: redisPresence?.lastSeen ? new Date(redisPresence.lastSeen) : new Date(),
             currentRoom: roomId
@@ -419,6 +420,7 @@ export class PresenceService {
           presence.status = globalStatus as UserPresenceStatus;
           presence.username = dbUser?.username || presence.username || userId;
           presence.email = dbUser?.email || presence.email || '';
+          presence.avatarUrl = dbUser?.avatarUrl || presence.avatarUrl || null;
           presence.lastSeen = redisPresence?.lastSeen ? new Date(redisPresence.lastSeen) : presence.lastSeen;
         }
         

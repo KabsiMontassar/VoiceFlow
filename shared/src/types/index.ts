@@ -166,6 +166,7 @@ export interface UserPresence {
   userId: string;
   username?: string;
   email?: string;
+  avatarUrl?: string | null;
   roomId?: string;
   currentRoom?: string;
   status: UserPresenceStatus;

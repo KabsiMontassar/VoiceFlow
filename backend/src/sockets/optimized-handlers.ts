@@ -104,6 +104,12 @@ export class OptimizedSocketHandlers {
           sessionId: decoded.sessionId
         });
         
+        // Load user's avatarUrl from database
+        const { UserModel } = await import('../models');
+        const user = await UserModel.findByPk(decoded.userId, {
+          attributes: ['avatarUrl']
+        });
+        
         socket.userId = decoded.userId;
         socket.sessionId = decoded.sessionId;
         socket.user = {
@@ -111,6 +117,7 @@ export class OptimizedSocketHandlers {
           userId: decoded.userId,
           email: decoded.email,
           username: decoded.username,
+          avatarUrl: user?.avatarUrl || null,
           sessionId: decoded.sessionId
         };
         
