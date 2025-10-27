@@ -1035,7 +1035,7 @@ max: 1000,                  // 1000 requests per window
 **Montassar Kabsi**
 
 - GitHub: [@KabsiMontassar](https://github.com/KabsiMontassar)
-- Email: montassar.kabsi@example.com
+- Email: <kebsimontassar@gmail.com>
 - Project Link: [https://github.com/KabsiMontassar/VoiceFlow](https://github.com/KabsiMontassar/VoiceFlow)
 
 ---
