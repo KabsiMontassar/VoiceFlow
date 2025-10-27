@@ -229,8 +229,8 @@ export const WEBRTC_CONFIG = {
   },
   AUDIO_CONSTRAINTS: {
     audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
+      echoCancellation: false,
+      noiseSuppression: false,
       autoGainControl: true,
       sampleRate: 48000,
       channelCount: 1,

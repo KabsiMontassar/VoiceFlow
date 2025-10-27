@@ -7,8 +7,8 @@ import { useAuthStore } from './authStore';
 
 // Audio constraints for getUserMedia
 const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
-  echoCancellation: true,
-  noiseSuppression: true,
+  echoCancellation: false,
+  noiseSuppression: false,
   autoGainControl: true,
   sampleRate: 48000,
   channelCount: 1,
@@ -851,8 +851,8 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => ({
       // Test 3: Request microphone access
       const constraints = {
         audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
+          echoCancellation: false,
+          noiseSuppression: false,
           autoGainControl: true,
         },
         video: false,
