@@ -54,6 +54,7 @@ export function ChatInterface() {
     selectInputDevice,
     selectOutputDevice,
     testMicrophone,
+    debugAudioElements,
   } = useWebRTCStore();
   
   // Check if user is in voice chat for this room
@@ -1193,6 +1194,15 @@ export function ChatInterface() {
                           </div>
                         )}
                       </div>
+
+                      {/* Debug Audio Button */}
+                      <button
+                        onClick={debugAudioElements}
+                        className="w-full flex items-center justify-center space-x-2 px-3 py-1.5 bg-background-secondary hover:bg-background-tertiary text-muted-text hover:text-secondary-text rounded-lg transition-all font-primary font-medium text-[10px] border border-subtle mt-2"
+                        title="Check audio connections (see console)"
+                      >
+                        🔍 Debug Audio (Check Console F12)
+                      </button>
 
                       {/* Voice Participants */}
                       {voiceParticipants.length > 0 && (
