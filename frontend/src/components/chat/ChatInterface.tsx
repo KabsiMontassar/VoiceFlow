@@ -4,16 +4,20 @@ import {
   Send,
   Smile,
   Users,
-  Phone,
   Hash,
   Clock,
+  Phone,
   Mic,
   MicOff,
-  PhoneOff
+  PhoneOff,
+  Headphones,
+  Volume2,
+  ChevronDown
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useRoomStore } from '../../stores/roomStore';
 import { useMessageStore } from '../../stores/messageStore';
+import { useWebRTCStore } from '../../stores/webrtcStore';
 import { socketClient } from '../../services/socket';
 import { apiClient } from '../../services/api';
 import { MessageType } from '../../../../shared/src/types';
@@ -31,6 +35,29 @@ export function ChatInterface() {
   const { user } = useAuthStore();
   const { rooms, removeRoom } = useRoomStore();
   const { currentRoomMessages, addMessage, setRoomMessages, removeMessage } = useMessageStore();
+  
+  // WebRTC Store for voice chat
+  const { 
+    currentRoomId,
+    isMuted,
+    isDeafened,
+    voiceParticipants,
+    audioInputDevices,
+    audioOutputDevices,
+    selectedInputDevice,
+    selectedOutputDevice,
+    localAudioLevel,
+    joinVoiceRoom,
+    leaveVoiceRoom,
+    toggleMute,
+    toggleDeafen,
+    selectInputDevice,
+    selectOutputDevice,
+    testMicrophone,
+  } = useWebRTCStore();
+  
+  // Check if user is in voice chat for this room
+  const isInVoiceCall = currentRoomId === roomId;
 
   const [messageInput, setMessageInput] = useState('');
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
@@ -42,11 +69,6 @@ export function ChatInterface() {
   const [showMentionsList, setShowMentionsList] = useState(false);
   const [mentionSearchQuery, setMentionSearchQuery] = useState('');
   const [mentionStartPos, setMentionStartPos] = useState<number | null>(null);
-
-  // Voice chat state (UI only for now)
-  const [isInVoiceCall, setIsInVoiceCall] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [voiceParticipants, setVoiceParticipants] = useState<string[]>([]); // Member IDs in voice call
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -942,10 +964,19 @@ export function ChatInterface() {
               <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
                 {members.map((member) => {
                   const isActive = activeUsers.has(member.id);
-                  const inVoice = voiceParticipants.includes(member.id);
+                  const voiceParticipant = voiceParticipants.find(p => p.userId === member.id);
+                  const inVoice = !!voiceParticipant;
+                  const isSpeaking = voiceParticipant?.isSpeaking || false;
+                  const isMemberMuted = voiceParticipant?.isMuted || false;
+                  const isMemberDeafened = voiceParticipant?.isDeafened || false;
+                  
                   return (
                     <div key={member.id} className="flex items-center space-x-3 p-3 rounded-xl hover:bg-background-tertiary transition-all group border border-transparent hover:border-subtle hover:shadow-sm">
                       <div className="relative">
+                        {/* Speaking indicator ring */}
+                        {isSpeaking && (
+                          <div className="absolute inset-0 rounded-full border-2 border-success animate-pulse"></div>
+                        )}
                         <Avatar
                           avatarId={member.avatarUrl || undefined}
                           initials={member.username?.charAt(0).toUpperCase() || 'U'}
@@ -959,8 +990,24 @@ export function ChatInterface() {
                             {member.username}
                           </div>
                           {inVoice && (
-                            <div className="flex items-center bg-success/10 px-1.5 py-0.5 rounded-md border border-success/20">
-                              <Phone className="w-3 h-3 text-success" />
+                            <div className="flex items-center space-x-1">
+                              {/* Voice status badge */}
+                              <div className={`flex items-center px-1.5 py-0.5 rounded-md border ${
+                                isSpeaking 
+                                  ? 'bg-success/20 border-success/40' 
+                                  : 'bg-success/10 border-success/20'
+                              }`}>
+                                {isMemberMuted ? (
+                                  <MicOff className="w-3 h-3 text-muted-text" />
+                                ) : isSpeaking ? (
+                                  <Mic className="w-3 h-3 text-success animate-pulse" />
+                                ) : (
+                                  <Phone className="w-3 h-3 text-success" />
+                                )}
+                              </div>
+                              {isMemberDeafened && (
+                                <Headphones className="w-3 h-3 text-muted-text" />
+                              )}
                             </div>
                           )}
                         </div>
@@ -970,6 +1017,11 @@ export function ChatInterface() {
                           <span className="text-xs font-primary text-secondary-text font-medium">
                             {isActive ? 'Online' : 'Offline'}
                           </span>
+                          {isSpeaking && (
+                            <span className="text-xs font-primary font-semibold text-success">
+                              • Speaking
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -994,51 +1046,152 @@ export function ChatInterface() {
                 {/* Voice Controls */}
                 <div className="space-y-2.5">
                   {!isInVoiceCall ? (
-                    <button
-                      onClick={() => {
-                        setIsInVoiceCall(true);
-                        setVoiceParticipants([...voiceParticipants, user?.id || '']);
-                        }}
+                    <>
+                      {/* Device Selection Before Join */}
+                      <div className="space-y-2">
+                        {/* Input Device Selector */}
+                        <div className="relative">
+                          <label className="text-xs font-primary font-semibold text-secondary-text mb-1.5 flex items-center space-x-1.5">
+                            <Mic className="w-3 h-3" />
+                            <span>Microphone</span>
+                          </label>
+                          <select
+                            value={selectedInputDevice || ''}
+                            onChange={(e) => selectInputDevice(e.target.value)}
+                            className="w-full px-3 py-2 bg-background-secondary border border-subtle rounded-lg text-sm font-primary text-primary-text focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all appearance-none cursor-pointer"
+                          >
+                            {audioInputDevices.length > 0 ? (
+                              audioInputDevices.map((device) => (
+                                <option key={device.deviceId} value={device.deviceId}>
+                                  {device.label || `Microphone ${device.deviceId.slice(0, 8)}`}
+                                </option>
+                              ))
+                            ) : (
+                              <option value="">No microphones found</option>
+                            )}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-8 w-4 h-4 text-secondary-text pointer-events-none" />
+                        </div>
+
+                        {/* Output Device Selector */}
+                        <div className="relative">
+                          <label className="text-xs font-primary font-semibold text-secondary-text mb-1.5 flex items-center space-x-1.5">
+                            <Volume2 className="w-3 h-3" />
+                            <span>Output</span>
+                          </label>
+                          <select
+                            value={selectedOutputDevice || ''}
+                            onChange={(e) => selectOutputDevice(e.target.value)}
+                            className="w-full px-3 py-2 bg-background-secondary border border-subtle rounded-lg text-sm font-primary text-primary-text focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all appearance-none cursor-pointer"
+                          >
+                            {audioOutputDevices.length > 0 ? (
+                              audioOutputDevices.map((device) => (
+                                <option key={device.deviceId} value={device.deviceId}>
+                                  {device.label || `Speaker ${device.deviceId.slice(0, 8)}`}
+                                </option>
+                              ))
+                            ) : (
+                              <option value="">Default output</option>
+                            )}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-8 w-4 h-4 text-secondary-text pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Test Microphone Button */}
+                      <button
+                        onClick={testMicrophone}
+                        className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-background-tertiary hover:bg-background-secondary text-secondary-text hover:text-primary-text rounded-lg transition-all font-primary font-medium text-xs border border-default"
+                      >
+                        <Mic className="w-3 h-3" />
+                        <span>Test Microphone</span>
+                      </button>
+
+                      {/* Join Button */}
+                      <button
+                        onClick={() => joinVoiceRoom(roomId)}
                         className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-primary hover:bg-primary/80 text-black rounded-xl transition-all font-primary font-semibold text-sm shadow-lg shadow-success/20 hover:shadow-xl hover:shadow-success/30"
                       >
                         <Phone className="w-4 h-4" />
-                        <span>Join Voice Call</span>
+                        <span>Join Voice Chat</span>
                       </button>
-                      
+                    </>
                   ) : (
                     <div className="space-y-2.5">
-                      {/* Mute/Unmute and Leave buttons */}
-                      <div className="flex items-center space-x-2">
+                      {/* Mute, Deafen, and Leave buttons */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Mute Button */}
                         <button
-                          onClick={() => setIsMuted(!isMuted)}
-                          className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl transition-all text-sm font-primary font-semibold shadow-sm ${isMuted
+                          onClick={toggleMute}
+                          className={`flex flex-col items-center justify-center px-3 py-2.5 rounded-xl transition-all text-xs font-primary font-semibold shadow-sm ${
+                            isMuted
                               ? 'bg-error/10 text-error hover:bg-error/20 border border-error/20'
                               : 'bg-background-tertiary text-primary-text hover:bg-background-secondary border border-default'
-                            }`}
+                          }`}
+                          title={isMuted ? 'Unmute' : 'Mute'}
                         >
-                          {isMuted ? (
-                            <>
-                              <MicOff className="w-4 h-4" />
-                              <span>Unmute</span>
-                            </>
-                          ) : (
-                            <>
-                              <Mic className="w-4 h-4" />
-                              <span>Mute</span>
-                            </>
-                          )}
+                          {isMuted ? <MicOff className="w-4 h-4 mb-1" /> : <Mic className="w-4 h-4 mb-1" />}
+                          <span className="text-[10px]">{isMuted ? 'Muted' : 'Mute'}</span>
                         </button>
+
+                        {/* Deafen Button */}
                         <button
-                          onClick={() => {
-                            setIsInVoiceCall(false);
-                            setIsMuted(false);
-                            setVoiceParticipants(voiceParticipants.filter(id => id !== user?.id));
-                          }}
-                          className="px-3 py-2.5 bg-error hover:bg-error/80 text-white rounded-xl transition-all shadow-lg shadow-error/20"
-                          title="Leave Voice Call"
+                          onClick={toggleDeafen}
+                          className={`flex flex-col items-center justify-center px-3 py-2.5 rounded-xl transition-all text-xs font-primary font-semibold shadow-sm ${
+                            isDeafened
+                              ? 'bg-error/10 text-error hover:bg-error/20 border border-error/20'
+                              : 'bg-background-tertiary text-primary-text hover:bg-background-secondary border border-default'
+                          }`}
+                          title={isDeafened ? 'Undeafen' : 'Deafen'}
                         >
-                          <PhoneOff className="w-4 h-4" />
+                          <Headphones className="w-4 h-4 mb-1" />
+                          <span className="text-[10px]">{isDeafened ? 'Deaf' : 'Deafen'}</span>
                         </button>
+
+                        {/* Leave Button */}
+                        <button
+                          onClick={leaveVoiceRoom}
+                          className="flex flex-col items-center justify-center px-3 py-2.5 bg-error hover:bg-error/80 text-white rounded-xl transition-all shadow-lg shadow-error/20"
+                          title="Leave Voice Chat"
+                        >
+                          <PhoneOff className="w-4 h-4 mb-1" />
+                          <span className="text-[10px]">Leave</span>
+                        </button>
+                      </div>
+
+                      {/* Microphone Input Level Indicator */}
+                      <div className="mt-3 px-3 py-2.5 bg-background-tertiary rounded-xl border border-default">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-primary font-semibold text-secondary-text">
+                            {isMuted ? 'Microphone Muted' : 'Microphone Input'}
+                          </span>
+                          {!isMuted && localAudioLevel > 0.1 && (
+                            <span className="text-xs font-primary font-semibold text-success animate-pulse">
+                              Speaking
+                            </span>
+                          )}
+                        </div>
+                        {/* Audio Level Bar */}
+                        <div className="relative w-full h-2 bg-background-secondary rounded-full overflow-hidden">
+                          <div 
+                            className={`absolute inset-y-0 left-0 rounded-full transition-all duration-100 ${
+                              isMuted 
+                                ? 'bg-muted-text/30' 
+                                : localAudioLevel > 0.1 
+                                  ? 'bg-success' 
+                                  : 'bg-primary/50'
+                            }`}
+                            style={{ 
+                              width: `${isMuted ? 0 : Math.min(localAudioLevel * 100, 100)}%` 
+                            }}
+                          />
+                        </div>
+                        {/* Debug info */}
+                        {!isMuted && (
+                          <div className="mt-1 text-[10px] text-muted-text font-mono">
+                            Level: {(localAudioLevel * 100).toFixed(0)}%
+                          </div>
+                        )}
                       </div>
 
                       {/* Voice Participants */}
@@ -1048,28 +1201,29 @@ export function ChatInterface() {
                             In Call ({voiceParticipants.length})
                           </div>
                           <div className="space-y-1.5 max-h-28 overflow-y-auto">
-                            {members
-                              .filter(m => voiceParticipants.includes(m.id))
-                              .map((member) => (
-                                <div key={member.id} className="flex items-center space-x-2.5 p-2 rounded-lg bg-background-tertiary border border-default">
-                                  <div className="w-7 h-7 bg-gradient-to-br from-secondary/60 to-primary/80 rounded-lg flex items-center justify-center shadow-sm">
-                                    <span className="text-xs font-bold text-black">
-                                      {member.username?.charAt(0).toUpperCase() || 'U'}
-                                    </span>
-                                  </div>
-                                  <span className="text-xs font-primary text-primary-text flex-1 truncate font-medium">
-                                    {member.username}
-                                    {member.id === user?.id && ' (You)'}
+                            {voiceParticipants.map((participant) => (
+                              <div key={participant.userId} className="flex items-center space-x-2.5 p-2 rounded-lg bg-background-tertiary border border-default">
+                                <div className="w-7 h-7 bg-gradient-to-br from-secondary/60 to-primary/80 rounded-lg flex items-center justify-center shadow-sm">
+                                  <span className="text-xs font-bold text-black">
+                                    {participant.username?.charAt(0).toUpperCase() || 'U'}
                                   </span>
-                                  <div className="flex items-center">
-                                    {member.id === user?.id && isMuted ? (
-                                      <MicOff className="w-3 h-3 text-error" />
-                                    ) : (
-                                      <Mic className="w-3 h-3 text-success" />
-                                    )}
-                                  </div>
                                 </div>
-                              ))}
+                                <span className="text-xs font-primary text-primary-text flex-1 truncate font-medium">
+                                  {participant.username}
+                                  {participant.userId === user?.id && ' (You)'}
+                                </span>
+                                <div className="flex items-center space-x-1">
+                                  {participant.isDeafened && (
+                                    <Headphones className="w-3 h-3 text-error" />
+                                  )}
+                                  {participant.isMuted ? (
+                                    <MicOff className="w-3 h-3 text-error" />
+                                  ) : (
+                                    <Mic className="w-3 h-3 text-success" />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}

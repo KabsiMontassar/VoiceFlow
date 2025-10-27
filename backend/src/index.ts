@@ -136,6 +136,11 @@ const startServer = async (): Promise<void> => {
     logger.info('Initializing presence service...');
     presenceService.initialize(io);
 
+    // Initialize WebRTC service
+    logger.info('Initializing WebRTC service...');
+    const { webrtcService } = await import('./services/webrtc.service');
+    webrtcService.initialize(io);
+
     // Initialize optimized socket handlers
     logger.info('Setting up optimized socket handlers...');
     socketHandlers = new OptimizedSocketHandlers(io);

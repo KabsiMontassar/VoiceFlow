@@ -1,5 +1,6 @@
 /**
  * WebRTC Service - Handles voice chat signaling and management
+ * Complete implementation with mute, deafen, and participant tracking
  */
 
 import { Server, Socket } from 'socket.io';
@@ -7,22 +8,32 @@ import { RTCSignalingMessage, SOCKET_EVENTS, SOCKET_RESPONSES } from '../../../s
 import { socketSendSuccess, socketSendError } from '../utils/responses';
 import logger from '../utils/logger';
 
+interface VoiceParticipant {
+  userId: string;
+  socketId: string;
+  isMuted: boolean;
+  isDeafened: boolean;
+  joinedAt: Date;
+}
+
 interface VoiceRoom {
   roomId: string;
-  participants: Set<string>; // User IDs
-  socketMap: Map<string, string>; // userId -> socketId
+  participants: Map<string, VoiceParticipant>; // userId -> participant
   createdAt: Date;
+  lastActivity: Date;
 }
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   currentRoom?: string;
   isInVoice?: boolean;
+  voiceRoomId?: string;
 }
 
 class WebRTCService {
   private voiceRooms: Map<string, VoiceRoom> = new Map();
-  private userSockets: Map<string, string> = new Map(); // userId -> socketId
+  private userToSocketMap: Map<string, string> = new Map(); // userId -> socketId
+  private socketToUserMap: Map<string, string> = new Map(); // socketId -> userId
   private io: Server | null = null;
 
   /**
@@ -31,6 +42,11 @@ class WebRTCService {
   initialize(io: Server): void {
     this.io = io;
     logger.info('WebRTC service initialized');
+    
+    // Start cleanup interval for inactive rooms
+    setInterval(() => {
+      this.cleanupInactiveRooms();
+    }, 60000); // Every minute
   }
 
   /**
@@ -48,8 +64,8 @@ class WebRTCService {
       }
 
       // Leave current voice room if in one
-      if (socket.isInVoice && socket.currentRoom) {
-        await this.leaveVoiceRoom(socket, socket.currentRoom);
+      if (socket.isInVoice && socket.voiceRoomId) {
+        await this.leaveVoiceRoom(socket, socket.voiceRoomId);
       }
 
       // Get or create voice room
@@ -57,24 +73,52 @@ class WebRTCService {
       if (!voiceRoom) {
         voiceRoom = {
           roomId,
-          participants: new Set(),
-          socketMap: new Map(),
+          participants: new Map(),
           createdAt: new Date(),
+          lastActivity: new Date(),
         };
         this.voiceRooms.set(roomId, voiceRoom);
+        logger.info(`Voice room created: ${roomId}`);
       }
 
+      // Create participant entry
+      const participant: VoiceParticipant = {
+        userId,
+        socketId: socket.id,
+        isMuted: false,
+        isDeafened: false,
+        joinedAt: new Date(),
+      };
+
       // Add user to voice room
-      voiceRoom.participants.add(userId);
-      voiceRoom.socketMap.set(userId, socket.id);
-      this.userSockets.set(userId, socket.id);
+      voiceRoom.participants.set(userId, participant);
+      voiceRoom.lastActivity = new Date();
+
+      // Update mappings
+      this.userToSocketMap.set(userId, socket.id);
+      this.socketToUserMap.set(socket.id, userId);
 
       // Update socket state
       socket.isInVoice = true;
-      socket.currentRoom = roomId;
+      socket.voiceRoomId = roomId;
 
       // Join Socket.IO room for voice
       await socket.join(`voice:${roomId}`);
+
+      // Get current participants (excluding the new user)
+      const participants = Array.from(voiceRoom.participants.values())
+        .filter(p => p.userId !== userId)
+        .map(p => ({
+          userId: p.userId,
+          isMuted: p.isMuted,
+          isDeafened: p.isDeafened,
+        }));
+
+      // Send current participants to new user
+      socket.emit(SOCKET_RESPONSES.VOICE_PARTICIPANTS, socketSendSuccess({
+        participants,
+        roomId,
+      }));
 
       // Notify existing participants about new user
       socket.to(`voice:${roomId}`).emit(SOCKET_RESPONSES.VOICE_USER_JOINED, {
@@ -83,20 +127,13 @@ class WebRTCService {
         timestamp: Date.now(),
       });
 
-      // Send current participants to new user
-      const participants = Array.from(voiceRoom.participants).filter(id => id !== userId);
-      socket.emit(SOCKET_RESPONSES.VOICE_PARTICIPANTS, socketSendSuccess({
-        participants,
-        roomId,
-      }));
-
       // Notify in text room about voice activity
       this.io.to(roomId).emit(SOCKET_RESPONSES.USER_VOICE_JOINED, {
         userId,
         timestamp: Date.now(),
       });
 
-      logger.info(`User ${userId} joined voice room ${roomId}`);
+      logger.info(`User ${userId} joined voice room ${roomId} (${voiceRoom.participants.size} participants)`);
 
     } catch (error) {
       logger.error('Error joining voice room:', error);
@@ -130,12 +167,15 @@ class WebRTCService {
 
       // Remove user from voice room
       voiceRoom.participants.delete(userId);
-      voiceRoom.socketMap.delete(userId);
-      this.userSockets.delete(userId);
+      voiceRoom.lastActivity = new Date();
+
+      // Update mappings
+      this.userToSocketMap.delete(userId);
+      this.socketToUserMap.delete(socket.id);
 
       // Update socket state
       socket.isInVoice = false;
-      socket.currentRoom = undefined;
+      socket.voiceRoomId = undefined;
 
       // Leave Socket.IO room
       await socket.leave(`voice:${roomId}`);
@@ -159,7 +199,7 @@ class WebRTCService {
         logger.info(`Voice room ${roomId} cleaned up (empty)`);
       }
 
-      logger.info(`User ${userId} left voice room ${roomId}`);
+      logger.info(`User ${userId} left voice room ${roomId} (${voiceRoom.participants.size} participants remaining)`);
 
     } catch (error) {
       logger.error('Error leaving voice room:', error);
@@ -193,7 +233,7 @@ class WebRTCService {
       }
 
       // Get target user's socket
-      const targetSocketId = this.userSockets.get(to);
+      const targetSocketId = this.userToSocketMap.get(to);
       if (!targetSocketId) {
         socket.emit(SOCKET_RESPONSES.VOICE_ERROR, socketSendError(
           'USER_NOT_FOUND',
@@ -228,14 +268,24 @@ class WebRTCService {
   /**
    * Handle user mute/unmute
    */
-  async handleMuteToggle(socket: AuthenticatedSocket, isMuted: boolean): Promise<void> {
+  async handleMuteToggle(socket: AuthenticatedSocket, roomId: string, isMuted: boolean): Promise<void> {
     try {
-      if (!this.io || !socket.isInVoice || !socket.currentRoom) {
+      if (!this.io || !socket.isInVoice || !socket.voiceRoomId) {
         return;
       }
 
       const { userId } = socket;
-      const roomId = socket.currentRoom;
+      if (!userId) return;
+
+      const voiceRoom = this.voiceRooms.get(roomId);
+      if (!voiceRoom) return;
+
+      const participant = voiceRoom.participants.get(userId);
+      if (!participant) return;
+
+      // Update participant state
+      participant.isMuted = isMuted;
+      voiceRoom.lastActivity = new Date();
 
       // Notify other participants about mute state change
       socket.to(`voice:${roomId}`).emit(SOCKET_RESPONSES.VOICE_USER_MUTED, {
@@ -260,29 +310,97 @@ class WebRTCService {
   }
 
   /**
+   * Handle user deafen/undeafen
+   */
+  async handleDeafenToggle(socket: AuthenticatedSocket, roomId: string, isDeafened: boolean): Promise<void> {
+    try {
+      if (!this.io || !socket.isInVoice || !socket.voiceRoomId) {
+        return;
+      }
+
+      const { userId } = socket;
+      if (!userId) return;
+
+      const voiceRoom = this.voiceRooms.get(roomId);
+      if (!voiceRoom) return;
+
+      const participant = voiceRoom.participants.get(userId);
+      if (!participant) return;
+
+      // Update participant state
+      participant.isDeafened = isDeafened;
+      voiceRoom.lastActivity = new Date();
+
+      // If deafened, also mute the user automatically
+      if (isDeafened && !participant.isMuted) {
+        participant.isMuted = true;
+        socket.to(`voice:${roomId}`).emit(SOCKET_RESPONSES.VOICE_USER_MUTED, {
+          userId,
+          isMuted: true,
+          timestamp: Date.now(),
+        });
+      }
+
+      // Notify other participants about deafen state change
+      socket.to(`voice:${roomId}`).emit('voice:user_deafened', {
+        userId,
+        isDeafened,
+        timestamp: Date.now(),
+      });
+
+      logger.debug(`User ${userId} ${isDeafened ? 'deafened' : 'undeafened'} in room ${roomId}`);
+
+    } catch (error) {
+      logger.error('Error handling deafen toggle:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get voice room participants
    */
-  getVoiceParticipants(roomId: string): string[] {
+  getVoiceParticipants(roomId: string): VoiceParticipant[] {
     const voiceRoom = this.voiceRooms.get(roomId);
-    return voiceRoom ? Array.from(voiceRoom.participants) : [];
+    return voiceRoom ? Array.from(voiceRoom.participants.values()) : [];
   }
 
   /**
    * Check if user is in voice
    */
   isUserInVoice(userId: string): boolean {
-    return this.userSockets.has(userId);
+    return this.userToSocketMap.has(userId);
+  }
+
+  /**
+   * Get user's current voice room
+   */
+  getUserVoiceRoom(userId: string): string | null {
+    for (const [roomId, voiceRoom] of this.voiceRooms) {
+      if (voiceRoom.participants.has(userId)) {
+        return roomId;
+      }
+    }
+    return null;
   }
 
   /**
    * Get voice room statistics
    */
-  getVoiceRoomStats(): { totalRooms: number; totalParticipants: number } {
+  getVoiceRoomStats(): { 
+    totalRooms: number; 
+    totalParticipants: number;
+    rooms: Array<{ roomId: string; participants: number }>;
+  } {
     const totalRooms = this.voiceRooms.size;
     const totalParticipants = Array.from(this.voiceRooms.values())
       .reduce((sum, room) => sum + room.participants.size, 0);
+    
+    const rooms = Array.from(this.voiceRooms.entries()).map(([roomId, room]) => ({
+      roomId,
+      participants: room.participants.size,
+    }));
 
-    return { totalRooms, totalParticipants };
+    return { totalRooms, totalParticipants, rooms };
   }
 
   /**
@@ -295,12 +413,13 @@ class WebRTCService {
         return; // Nothing to clean up
       }
 
-      if (socket.isInVoice && socket.currentRoom) {
-        await this.leaveVoiceRoom(socket, socket.currentRoom);
+      if (socket.isInVoice && socket.voiceRoomId) {
+        await this.leaveVoiceRoom(socket, socket.voiceRoomId);
       }
 
-      // Remove from user sockets map
-      this.userSockets.delete(userId);
+      // Remove from mappings
+      this.userToSocketMap.delete(userId);
+      this.socketToUserMap.delete(socket.id);
 
       logger.debug(`Cleaned up voice data for user ${userId}`);
 
@@ -312,13 +431,13 @@ class WebRTCService {
   /**
    * Clean up inactive voice rooms
    */
-  cleanupInactiveRooms(maxAge: number = 24 * 60 * 60 * 1000): number { // 24 hours default
+  cleanupInactiveRooms(maxInactivity: number = 30 * 60 * 1000): number { // 30 minutes default
     let cleaned = 0;
     const now = Date.now();
 
     for (const [roomId, voiceRoom] of this.voiceRooms.entries()) {
       if (voiceRoom.participants.size === 0 && 
-          (now - voiceRoom.createdAt.getTime()) > maxAge) {
+          (now - voiceRoom.lastActivity.getTime()) > maxInactivity) {
         this.voiceRooms.delete(roomId);
         cleaned++;
       }
@@ -329,6 +448,44 @@ class WebRTCService {
     }
 
     return cleaned;
+  }
+
+  /**
+   * Get comprehensive room info
+   */
+  getVoiceRoomInfo(roomId: string): {
+    exists: boolean;
+    participants: Array<{
+      userId: string;
+      isMuted: boolean;
+      isDeafened: boolean;
+      joinedAt: Date;
+    }>;
+    createdAt: Date | null;
+    lastActivity: Date | null;
+  } {
+    const voiceRoom = this.voiceRooms.get(roomId);
+    
+    if (!voiceRoom) {
+      return {
+        exists: false,
+        participants: [],
+        createdAt: null,
+        lastActivity: null,
+      };
+    }
+
+    return {
+      exists: true,
+      participants: Array.from(voiceRoom.participants.values()).map(p => ({
+        userId: p.userId,
+        isMuted: p.isMuted,
+        isDeafened: p.isDeafened,
+        joinedAt: p.joinedAt,
+      })),
+      createdAt: voiceRoom.createdAt,
+      lastActivity: voiceRoom.lastActivity,
+    };
   }
 }
 

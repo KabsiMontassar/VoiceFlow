@@ -4,12 +4,10 @@
  */
 
 import { Server as SocketServer, Socket } from 'socket.io';
-import jwt from 'jsonwebtoken';
 import { messageService } from '../services/message.service';
 import { presenceService } from '../services/presence.service';
 import { redisService } from '../services/redis.service';
 import { FriendService } from '../services/friend.service';
-import { UserService } from '../services/user.service';
 import logger from '../utils/logger';
 
 interface AuthenticatedSocket extends Socket {
@@ -261,6 +259,39 @@ export class OptimizedSocketHandlers {
     // WebRTC signaling (optimized)
     socket.on('webrtc_signal', async (data) => {
       await this.handleWebRTCSignal(socket, data);
+    });
+
+    // Voice chat events
+    socket.on('voice:join', async (data) => {
+      await this.handleVoiceJoin(socket, data);
+    });
+
+    socket.on('voice:leave', async (data) => {
+      await this.handleVoiceLeave(socket, data);
+    });
+
+    socket.on('voice:signal', async (data) => {
+      await this.handleVoiceSignal(socket, data);
+    });
+
+    socket.on('voice:mute', async (data) => {
+      await this.handleVoiceMute(socket, data);
+    });
+
+    socket.on('voice:unmute', async (data) => {
+      await this.handleVoiceMute(socket, { ...data, isMuted: false });
+    });
+
+    socket.on('voice:deafen', async (data) => {
+      await this.handleVoiceDeafen(socket, data);
+    });
+
+    socket.on('voice:undeafen', async (data) => {
+      await this.handleVoiceDeafen(socket, { ...data, isDeafened: false });
+    });
+
+    socket.on('voice:speaking', async (data) => {
+      await this.handleVoiceSpeaking(socket, data);
     });
 
     // Heartbeat for connection health
@@ -655,6 +686,177 @@ export class OptimizedSocketHandlers {
 
     } catch (error) {
       logger.error('WebRTC signal error:', error);
+    }
+  }
+
+  /**
+   * Handle voice room join
+   */
+  private async handleVoiceJoin(socket: RateLimitedSocket, data: any): Promise<void> {
+    const userId = socket.userId!;
+    const { roomId } = data;
+
+    try {
+      if (!roomId) {
+        socket.emit('error', { message: 'Room ID required for voice join' });
+        return;
+      }
+
+      // Join voice room through WebRTC service
+      const { webrtcService } = await import('../services/webrtc.service');
+      await webrtcService.joinVoiceRoom(socket as any, roomId);
+
+      logger.info(`User ${userId} joined voice room ${roomId}`);
+
+    } catch (error) {
+      logger.error('Voice join error:', error);
+      socket.emit('voice:error', { 
+        message: 'Failed to join voice room',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Handle voice room leave
+   */
+  private async handleVoiceLeave(socket: RateLimitedSocket, data: any): Promise<void> {
+    const userId = socket.userId!;
+    const { roomId } = data;
+
+    try {
+      if (!roomId) return;
+
+      // Leave voice room through WebRTC service
+      const { webrtcService } = await import('../services/webrtc.service');
+      await webrtcService.leaveVoiceRoom(socket as any, roomId);
+
+      logger.info(`User ${userId} left voice room ${roomId}`);
+
+    } catch (error) {
+      logger.error('Voice leave error:', error);
+    }
+  }
+
+  /**
+   * Handle voice signaling messages
+   */
+  private async handleVoiceSignal(socket: RateLimitedSocket, data: any): Promise<void> {
+    const userId = socket.userId!;
+
+    try {
+      const { to, type, signal, roomId } = data;
+
+      if (!to || !type || !roomId) {
+        socket.emit('voice:error', {
+          message: 'Missing required fields in voice signal'
+        });
+        return;
+      }
+
+      // Find target user's sockets
+      const targetSockets = this.connectionPool.get(to);
+      if (targetSockets) {
+        for (const targetSocketId of targetSockets) {
+          this.io.to(targetSocketId).emit('voice:signal', {
+            from: userId,
+            to,
+            type,
+            signal,
+            roomId,
+            timestamp: Date.now()
+          });
+        }
+        logger.debug(`Voice signal forwarded: ${type} from ${userId} to ${to} in room ${roomId}`);
+      } else {
+        socket.emit('voice:error', {
+          message: 'Target user not connected'
+        });
+      }
+
+    } catch (error) {
+      logger.error('Voice signal error:', error);
+      socket.emit('voice:error', {
+        message: 'Failed to process voice signal'
+      });
+    }
+  }
+
+  /**
+   * Handle voice mute/unmute
+   */
+  private async handleVoiceMute(socket: RateLimitedSocket, data: any): Promise<void> {
+    const userId = socket.userId!;
+    const { roomId, isMuted } = data;
+
+    try {
+      if (!roomId) return;
+
+      // Notify other participants in the voice room
+      socket.to(`voice:${roomId}`).emit('voice:user_muted', {
+        userId,
+        isMuted,
+        timestamp: Date.now()
+      });
+
+      // Notify text room as well
+      this.io.to(roomId).emit('user:voice_muted', {
+        userId,
+        isMuted,
+        timestamp: Date.now()
+      });
+
+      logger.debug(`User ${userId} ${isMuted ? 'muted' : 'unmuted'} in room ${roomId}`);
+
+    } catch (error) {
+      logger.error('Voice mute error:', error);
+    }
+  }
+
+  /**
+   * Handle voice deafen/undeafen
+   */
+  private async handleVoiceDeafen(socket: RateLimitedSocket, data: any): Promise<void> {
+    const userId = socket.userId!;
+    const { roomId, isDeafened } = data;
+
+    try {
+      if (!roomId) return;
+
+      // Notify other participants in the voice room
+      socket.to(`voice:${roomId}`).emit('voice:user_deafened', {
+        userId,
+        isDeafened,
+        timestamp: Date.now()
+      });
+
+      logger.debug(`User ${userId} ${isDeafened ? 'deafened' : 'undeafened'} in room ${roomId}`);
+
+    } catch (error) {
+      logger.error('Voice deafen error:', error);
+    }
+  }
+
+  /**
+   * Handle voice speaking state (for visual indicators)
+   */
+  private async handleVoiceSpeaking(socket: RateLimitedSocket, data: any): Promise<void> {
+    const userId = socket.userId!;
+    const { roomId, isSpeaking, audioLevel } = data;
+
+    try {
+      if (!roomId) return;
+
+      // Broadcast speaking state to other participants in the voice room
+      socket.to(`voice:${roomId}`).emit('voice:user_speaking', {
+        userId,
+        isSpeaking,
+        audioLevel: audioLevel || 0,
+        timestamp: Date.now()
+      });
+
+    } catch (error) {
+      logger.error('Voice speaking error:', error);
     }
   }
 

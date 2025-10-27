@@ -31,6 +31,9 @@ export const SOCKET_EVENTS = {
   VOICE_SIGNAL: 'voice:signal',
   VOICE_MUTE: 'voice:mute',
   VOICE_UNMUTE: 'voice:unmute',
+  VOICE_DEAFEN: 'voice:deafen',
+  VOICE_UNDEAFEN: 'voice:undeafen',
+  VOICE_SPEAKING: 'voice:speaking',
 
   // Notifications
   NOTIFICATION_ACK: 'notification:ack',
@@ -66,9 +69,12 @@ export const SOCKET_RESPONSES = {
   VOICE_USER_JOINED: 'voice:user_joined',
   VOICE_USER_LEFT: 'voice:user_left',
   VOICE_USER_MUTED: 'voice:user_muted',
+  VOICE_USER_DEAFENED: 'voice:user_deafened',
+  VOICE_USER_SPEAKING: 'voice:user_speaking',
   VOICE_PARTICIPANTS: 'voice:participants',
   VOICE_ERROR: 'voice:error',
   VOICE_SIGNAL: 'voice:signal',
+  VOICE_CONNECTION_QUALITY: 'voice:connection_quality',
   
   // User voice activity in text rooms
   USER_VOICE_JOINED: 'user:voice_joined',
@@ -207,9 +213,39 @@ export const WEBRTC_CONFIG = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
   ],
   OFFER_OPTIONS: {
     offerToReceiveAudio: true,
     offerToReceiveVideo: false,
+  },
+  PEER_CONNECTION_CONFIG: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+    iceCandidatePoolSize: 10,
+  },
+  AUDIO_CONSTRAINTS: {
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      sampleRate: 48000,
+      channelCount: 1,
+    },
+    video: false,
+  },
+  // Voice activity detection thresholds
+  VOICE_ACTIVITY_THRESHOLD: 0.1, // Normalized level (0-1)
+  SPEAKING_DETECTION_DELAY: 100, // ms
+  SPEAKING_STOP_DELAY: 500, // ms
+  // Connection quality thresholds (RTT in ms)
+  CONNECTION_QUALITY: {
+    EXCELLENT: 50,
+    GOOD: 150,
+    FAIR: 300,
+    POOR: 500,
   },
 } as const;
