@@ -1,6 +1,6 @@
 /**
  * Database Models using Sequelize
- * Defines all models for VoiceFlow application
+ * Defines all models for Valero application
  */
 
 import { DataTypes, Model, Sequelize } from 'sequelize';

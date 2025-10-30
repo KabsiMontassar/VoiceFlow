@@ -1,5 +1,5 @@
 /**
- * VoiceFlow Backend Entry Point - Performance Optimized
+ * Valero Backend Entry Point - Performance Optimized
  * Initializes Express server with Socket.IO integration, Redis scaling, and presence management
  */
 
@@ -96,7 +96,7 @@ app.get('/health', async (req: express.Request, res: express.Response) => {
 // API version endpoint with performance info
 app.get('/api/v1/info', (req: express.Request, res: express.Response) => {
   res.json({
-    name: 'VoiceFlow API',
+    name: 'Valero API',
     version: '1.0.0',
     environment: config.NODE_ENV,
     features: ['realtime-chat', 'presence-tracking', 'redis-scaling', 'rate-limiting'],
@@ -122,7 +122,7 @@ app.use(errorHandler);
  */
 const startServer = async (): Promise<void> => {
   try {
-    logger.info('Initializing VoiceFlow backend with performance optimizations...');
+    logger.info('Initializing Valero backend with performance optimizations...');
 
     // Initialize database
     logger.info('Connecting to database...');
@@ -151,7 +151,7 @@ const startServer = async (): Promise<void> => {
 
     // Start HTTP server
     httpServer.listen(config.PORT, () => {
-      logger.info(`🚀 VoiceFlow server running on http://localhost:${config.PORT}`);
+      logger.info(`🚀 Valero server running on http://localhost:${config.PORT}`);
       logger.info(`📡 WebSocket available at ws://localhost:${config.PORT}${config.SOCKET_PATH}`);
       logger.info(`🔧 Environment: ${config.NODE_ENV}`);
       logger.info('✅ Performance optimizations active:');

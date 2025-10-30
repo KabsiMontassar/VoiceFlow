@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 import { Shield, UserMinus, Ban, Unlock, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../../services/api';
 import { useToastStore } from '../../stores/toastStore';
-import type { RoomBan } from '@voiceflow/shared';
+import type { RoomBan } from '@valero/shared';
 
 interface RoomModerationPanelProps {
   isOpen: boolean;

@@ -176,7 +176,7 @@ export class RedisService {
 
     try {
       const adapter = createAdapter(this.pubClient, this.subClient, {
-        key: 'voiceflow:socket.io',
+        key: 'valero:socket.io',
         requestsTimeout: 5000
       });
 

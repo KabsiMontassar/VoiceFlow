@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# VoiceFlow Demo Setup Script
+# valero Demo Setup Script
 # This script sets up the development environment for local development
 
-echo "🚀 Setting up VoiceFlow Development Environment..."
+echo "🚀 Setting up valero Development Environment..."
 
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
@@ -16,13 +16,13 @@ docker-compose -f docker-compose-demo.yaml up -d
 
 echo "⏳ Step 2: Waiting for services to be ready..."
 echo "   - PostgreSQL starting..."
-until docker-compose -f docker-compose-demo.yaml exec postgres pg_isready -U voiceflow_user -d voiceflow_dev > /dev/null 2>&1; do
+until docker-compose -f docker-compose-demo.yaml exec postgres pg_isready -U valero_user -d valero_dev > /dev/null 2>&1; do
     sleep 2
     echo "   - Still waiting for PostgreSQL..."
 done
 
 echo "   - Redis starting..."
-until docker-compose -f docker-compose-demo.yaml exec redis redis-cli -a voiceflow_redis_pass ping > /dev/null 2>&1; do
+until docker-compose -f docker-compose-demo.yaml exec redis redis-cli -a valero_redis_pass ping > /dev/null 2>&1; do
     sleep 2
     echo "   - Still waiting for Redis..."
 done
@@ -33,7 +33,7 @@ echo ""
 echo "🔗 Service URLs:"
 echo "   PostgreSQL: localhost:5432"
 echo "   Redis: localhost:6379"
-echo "   pgAdmin: http://localhost:8080 (admin@voiceflow.dev / admin123)"
+echo "   pgAdmin: http://localhost:8080 (admin@valero.dev / admin123)"
 echo "   Redis Commander: http://localhost:8081 (admin / admin)"
 
 echo ""

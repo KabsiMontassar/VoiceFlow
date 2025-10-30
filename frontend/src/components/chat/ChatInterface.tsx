@@ -687,7 +687,8 @@ export function ChatInterface() {
           <button
             onClick={() => setShowMembers(!showMembers)}
             className={`p-2.5 rounded-xl transition-all ${showMembers
-                ? 'bg-primary text-black shadow-md'
+                ? `bg-gradient-to-b from-[#2A6EDB] to-[#7AAFCF]
+                        [background-image:linear-gradient(180deg,theme(colors.primary),theme(colors.secondary))] text-black shadow-md`
                 : 'hover:bg-background-tertiary text-secondary-text'
               }`}
             title="Members"
@@ -716,7 +717,8 @@ export function ChatInterface() {
                 navigate({ to: '/' });
               }
             }}
-            className="btn-primary text-sm shadow-lg shadow-primary/10"
+            className="btn-primary bg-gradient-to-b from-[#2A6EDB] to-[#7AAFCF]
+                        [background-image:linear-gradient(180deg,theme(colors.primary),theme(colors.secondary))]  text-sm shadow-lg shadow-primary/10"
             title="Leave Room"
           >
             Leave Room
@@ -791,14 +793,14 @@ export function ChatInterface() {
                           <div
                             className={`px-5 py-3.5 rounded-2xl ${
                               isOwnMessage
-                                ? 'bg-primary text-black shadow-lg shadow-primary/10'
+                                ? 'bg-primary/20 border border-primary/60 text-primary-text shadow-lg shadow-primary/10'
                                 : isMentioned
                                 ? 'bg-secondary/20 border-2 border-secondary text-primary-text shadow-lg shadow-secondary/30 ring-2 ring-secondary/20 animate-pulse-slow'
                                 : 'bg-background-tertiary border border-subtle text-primary-text shadow-sm'
                             }`}
                           >
                             <p className="text-[15px] leading-relaxed font-primary">{message.content}</p>
-                            <div className={`text-[11px] mt-2 font-primary font-medium ${isOwnMessage ? 'text-black/60' : 'text-secondary-text'}`}>
+                            <div className={`text-[11px] mt-2 font-primary font-medium ${isOwnMessage ? 'text-secondary/80' : 'text-secondary-text'}`}>
                               {formatTime(message.createdAt)}
                             </div>
                           </div>
@@ -873,7 +875,8 @@ export function ChatInterface() {
               <button
                 type="submit"
                 disabled={!messageInput.trim()}
-                className="p-3 rounded-xl bg-primary text-black hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/20"
+                className="p-3 rounded-xl bg-gradient-to-b from-[#2A6EDB] to-[#7AAFCF]
+                        [background-image:linear-gradient(180deg,theme(colors.primary),theme(colors.secondary))] text-black hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/20"
                 title="Send Message"
               >
                 <Send className="w-5 h-5" />
@@ -1109,10 +1112,16 @@ export function ChatInterface() {
                       </button>
 
                       {/* Join Button */}
-                      <button
+                        <button
                         onClick={() => joinVoiceRoom(roomId)}
-                        className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-primary hover:bg-primary/80 text-black rounded-xl transition-all font-primary font-semibold text-sm shadow-lg shadow-success/20 hover:shadow-xl hover:shadow-success/30"
-                      >
+                        className="w-full 
+                        flex items-center 
+                        justify-center 
+                        space-x-2 px-4 py-3 
+                        bg-gradient-to-b from-[#2A6EDB] to-[#7AAFCF]
+                        [background-image:linear-gradient(180deg,theme(colors.primary),theme(colors.secondary))]
+                        hover:brightness-110 text-black rounded-xl transition-all font-primary font-semibold text-sm shadow-lg shadow-success/20 hover:shadow-xl hover:shadow-success/30"
+                        >
                         <Phone className="w-4 h-4" />
                         <span>Join Voice Chat</span>
                       </button>

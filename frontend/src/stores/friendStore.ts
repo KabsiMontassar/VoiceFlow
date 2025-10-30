@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { FriendRequest, FriendWithStatus } from '@voiceflow/shared';
+import type { FriendRequest, FriendWithStatus } from '@valero/shared';
 import apiClient from '../services/api';
 
 interface FriendStore {

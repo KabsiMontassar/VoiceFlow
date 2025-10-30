@@ -24,8 +24,8 @@
     
     "baseUrl": ".",
     "paths": {
-      "@voiceflow/shared": ["../shared/dist/index.d.ts"],
-      "@voiceflow/shared/*": ["../shared/dist/*"],
+      "@valero/shared": ["../shared/dist/index.d.ts"],
+      "@valero/shared/*": ["../shared/dist/*"],
       "@/*": ["./src/*"]
     }
   },

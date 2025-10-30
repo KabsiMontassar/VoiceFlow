@@ -18,8 +18,8 @@
     "baseUrl": ".",
     "composite": true,
     "paths": {
-      "@voiceflow/shared": ["../shared/src/index.ts"],
-      "@voiceflow/shared/*": ["../shared/src/*"],
+      "@valero/shared": ["../shared/src/index.ts"],
+      "@valero/shared/*": ["../shared/src/*"],
       "@/*": ["./src/*"]
     },
     "noEmitOnError": false

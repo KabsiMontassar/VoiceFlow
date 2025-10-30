@@ -69,7 +69,7 @@ const Register = (): FunctionComponent => {
             <div className="w-12 h-12 bg-primary/10 backdrop-blur-sm rounded-xl flex items-center justify-center mb-4 border border-primary/20">
               <div className="w-6 h-6 bg-primary rounded-md"></div>
             </div>
-            <h1 className="text-5xl font-bold text-primary-text mb-4 tracking-tight font-primary">Join VoiceFlow</h1>
+            <h1 className="text-5xl font-bold text-primary-text mb-4 tracking-tight font-primary">Join Valero</h1>
             <div className="h-1 w-20 bg-gradient-to-r from-primary to-secondary rounded-full"></div>
           </div>
           <p className="text-xl text-muted mb-12 leading-relaxed font-primary">

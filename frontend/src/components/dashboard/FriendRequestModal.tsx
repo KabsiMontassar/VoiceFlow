@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 import { UserPlus, UserMinus, Clock, CheckCircle } from 'lucide-react';
 import { useFriendStore } from '../../stores/friendStore';
 import { useToastStore } from '../../stores/toastStore';
-import type { FriendRequest } from '@voiceflow/shared';
+import type { FriendRequest } from '@valero/shared';
 
 interface FriendRequestModalProps {
   isOpen: boolean;

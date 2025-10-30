@@ -1,8 +1,8 @@
 {
-  "name": "@voiceflow/backend",
+  "name": "@valero/backend",
   "version": "1.0.0",
   "type": "module",
-  "description": "VoiceFlow backend server",
+  "description": "Valero backend server",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

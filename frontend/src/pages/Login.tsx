@@ -48,7 +48,7 @@ const Login = (): FunctionComponent => {
             <div className="w-12 h-12 bg-primary/10 backdrop-blur-sm rounded-xl flex items-center justify-center mb-4 border border-primary/20">
               <div className="w-6 h-6 bg-primary rounded-md"></div>
             </div>
-            <h1 className="text-5xl font-bold text-primary-text mb-4 tracking-tight font-primary">VoiceFlow</h1>
+            <h1 className="text-5xl font-bold text-primary-text mb-4 tracking-tight font-primary">Valero</h1>
             <div className="h-1 w-20 bg-gradient-to-r from-primary to-secondary rounded-full"></div>
           </div>
           <p className="text-xl text-muted mb-12 leading-relaxed font-primary">
@@ -141,7 +141,7 @@ const Login = (): FunctionComponent => {
               <div className="w-full border-t border-default"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-background-secondary text-muted font-primary">New to VoiceFlow?</span>
+              <span className="px-4 bg-background-secondary text-muted font-primary">New to Valero?</span>
             </div>
           </div>
 

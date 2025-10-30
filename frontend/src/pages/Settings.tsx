@@ -481,7 +481,7 @@ export default function Settings() {
             <div className="space-y-6 animate-fadeIn">
               <div>
                 <h2 className="text-2xl font-bold text-primary-text font-primary mb-2">Preferences</h2>
-                <p className="text-secondary-text font-primary">Customize your VoiceFlow experience</p>
+                <p className="text-secondary-text font-primary">Customize your Valero experience</p>
               </div>
 
               {/* Friend Requests Card */}

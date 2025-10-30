@@ -10,10 +10,10 @@ export const config = {
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
 
   // Database
-  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/voiceflow',
+  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/Valero',
   DB_HOST: process.env.DB_HOST || 'localhost',
   DB_PORT: parseInt(process.env.DB_PORT || '5432', 10),
-  DB_NAME: process.env.DB_NAME || 'voiceflow',
+  DB_NAME: process.env.DB_NAME || 'valero',
   DB_USER: process.env.DB_USER || 'user',
   DB_PASSWORD: process.env.DB_PASSWORD || 'password',
 
@@ -52,7 +52,7 @@ export const config = {
   MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || '52428800', 10), // 50MB in bytes
 
   // Email (optional)
-  EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@voiceflow.app',
+  EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@valero.app',
   SMTP_HOST: process.env.SMTP_HOST,
   SMTP_PORT: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : undefined,
   SMTP_USER: process.env.SMTP_USER,

@@ -1,0 +1,233 @@
+# VoiceFlow Security System
+
+## 🔐 Security Overview
+
+VoiceFlow implements enterprise-grade security with JWT authentication, end-to-end encryption, and comprehensive privacy controls.
+
+---
+
+## 🔑 Authentication System
+
+### Login Flow
+```
+User Input → Password Hash → JWT Token Generation → Session Creation
+     ↓              ↓              ↓              ↓
+   Validate    bcrypt.hash()   15min TTL     Redis Store
+   Credentials   (Salt:10)    Refresh:7d     Session ID
+```
+
+### Token Management
+- **Access Token**: 15 minutes TTL
+- **Refresh Token**: 7 days TTL
+- **Session Tracking**: Redis-based session management
+- **Max Sessions**: 5 concurrent sessions per user
+
+### Password Security
+- **Hashing**: bcrypt with 10 salt rounds
+- **Minimum Length**: 6 characters
+- **Storage**: Never stored in plain text
+
+---
+
+## 🛡️ Security Settings Panel
+
+### Account Security
+```
+┌─ Account Security ──────────────────┐
+│ Email: user@example.com (read-only) │
+│                                     │
+│ Current Password: [••••••••]        │
+│ New Password: [••••••••]            │
+│ Confirm Password: [••••••••]        │
+│                                     │
+│ [Save Changes]                      │
+└─────────────────────────────────────┘
+```
+
+### Session Management
+```
+┌─ Active Sessions ───────────────────┐
+│ • Chrome on Windows (Current)       │
+│ • Safari on iPhone (2 hours ago)    │
+│ • Firefox on Linux (1 day ago)      │
+│                                     │
+│ [Logout All Sessions]               │
+└─────────────────────────────────────┘
+```
+
+---
+
+## 🔒 Encryption Indicators
+
+### Data Encryption
+```
+Database:     🔐 AES-256 Encrypted
+Network:      🔐 TLS 1.3
+WebRTC:       🔐 DTLS-SRTP
+Passwords:    🔐 bcrypt (10 rounds)
+```
+
+### Connection Status
+```
+┌─ Connection Security ──────────────┐
+│ HTTPS:     ✅ Active               │
+│ WebRTC:    ✅ Encrypted            │
+│ Database:  ✅ Encrypted            │
+│ API Keys:  ✅ Protected            │
+└─────────────────────────────────────┘
+```
+
+### Voice Encryption
+```
+WebRTC Signaling: 🔐 WSS (Secure WebSocket)
+Media Streams:    🔐 DTLS-SRTP Encryption
+Peer Connection:  🔐 End-to-End Encrypted
+```
+
+---
+
+## 🔒 Privacy Controls
+
+### Profile Privacy
+```
+┌─ Privacy Settings ─────────────────┐
+│ 👁️  Show Online Status             │
+│     [✓] On  [ ] Off                │
+│                                     │
+│ 👥 Allow Friend Requests           │
+│     [✓] On  [ ] Off                │
+│                                     │
+│ 📍 Show Location                   │
+│     [ ] On  [✓] Off                │
+└─────────────────────────────────────┘
+```
+
+### Data Sharing
+```
+┌─ Data & Analytics ─────────────────┐
+│ 📊 Usage Analytics                 │
+│     [ ] On  [✓] Off                │
+│                                     │
+│ 📧 Marketing Emails                │
+│     [ ] On  [✓] Off                │
+│                                     │
+│ 🔍 Error Reporting                 │
+│     [✓] On  [ ] Off                │
+└─────────────────────────────────────┘
+```
+
+---
+
+## ⚙️ Authentication Settings
+
+### Login Options
+```
+┌─ Authentication ───────────────────┐
+│ 🔐 Password                        │
+│     Last changed: 2 days ago       │
+│     [Change Password]              │
+│                                     │
+│ 📱 Two-Factor Authentication       │
+│     Status: Disabled               │
+│     [Enable 2FA]                   │
+│                                     │
+│ 🔑 API Keys                        │
+│     2 active keys                  │
+│     [Manage Keys]                  │
+└─────────────────────────────────────┘
+```
+
+### Security Alerts
+```
+┌─ Security Alerts ──────────────────┐
+│ 🔔 New Login Alert                 │
+│     [✓] Email  [✓] Push            │
+│                                     │
+│ 🚨 Suspicious Activity             │
+│     [✓] Email  [ ] Push            │
+│                                     │
+│ 🔓 Password Change                 │
+│     [✓] Email  [✓] Push            │
+└─────────────────────────────────────┘
+```
+
+---
+
+## 🔄 Security Flow Diagram
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Frontend  │    │   Backend   │    │  Database   │
+│             │    │             │    │             │
+│ 1. Login    │───▶│ 2. Validate │───▶│ 3. Check    │
+│    Form     │    │    JWT      │    │    User     │
+└─────────────┘    └─────────────┘    └─────────────┘
+         ▲                   ▲                   ▲
+         │                   │                   │
+         └─────── 4. Access Token ───────┘
+                 5. Refresh Token
+                 6. Session Created
+
+WebRTC Voice Flow:
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Browser   │    │   Signaling │    │   Peer      │
+│             │    │   Server    │    │   Connection│
+│ 1. Join     │───▶│ 2. Auth     │───▶│ 3. DTLS     │
+│    Room     │    │    Check    │    │    Handshake│
+└─────────────┘    └─────────────┘    └─────────────┘
+         ▲                   ▲                   ▲
+         │                   │                   │
+         └─────── 4. Encrypted Media ───────┘
+                 5. SRTP Protection
+                 6. End-to-End Security
+```
+
+---
+
+## 🛡️ Security Features
+
+### Authentication
+- ✅ JWT with refresh tokens
+- ✅ Session management
+- ✅ Password hashing (bcrypt)
+- ✅ Rate limiting
+- ✅ Account lockout protection
+
+### Communication
+- ✅ WebRTC DTLS-SRTP encryption
+- ✅ WSS (Secure WebSocket)
+- ✅ TLS 1.3 for all connections
+- ✅ End-to-end voice encryption
+
+### Data Protection
+- ✅ Database encryption
+- ✅ Secure API endpoints
+- ✅ Input validation
+- ✅ XSS/CSRF protection
+
+### Privacy
+- ✅ User consent management
+- ✅ Data minimization
+- ✅ Right to be forgotten
+- ✅ Privacy controls
+
+---
+
+## 🚨 Security Monitoring
+
+### Real-time Alerts
+- New device login notifications
+- Suspicious activity detection
+- Failed login attempts
+- Session timeout warnings
+
+### Audit Logs
+- Authentication events
+- Password changes
+- Privacy setting changes
+- Account deletions
+
+---
+
+*Last Security Review: October 2025*
+*Security Level: Enterprise Grade*

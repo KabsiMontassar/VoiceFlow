@@ -1,8 +1,8 @@
 {
-  "name": "@voiceflow/frontend",
+  "name": "@valero/frontend",
   "version": "1.0.0",
   "type": "module",
-  "description": "VoiceFlow frontend application",
+  "description": "Valero frontend application",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

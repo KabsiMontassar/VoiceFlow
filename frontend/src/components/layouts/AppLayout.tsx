@@ -19,7 +19,8 @@ import { useRoomStore } from '../../stores/roomStore';
 import { useFriendStore } from '../../stores/friendStore';
 import Avatar from '../ui/Avatar';
 import { FriendRequestsModal } from '../FriendRequestsModal';
-
+import logo from '../../assets/Valero.svg';
+import logoicon from '../../assets/logoicon.svg';
 export function AppLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,20 +75,24 @@ export function AppLayout() {
         {/* Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-subtle">
           {!isCollapsed && (
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary/80 to-secondary rounded-lg flex items-center justify-center shadow-sm">
-                <MessageSquare className="w-5 h-5 text-black" />
-              </div>
-              <span className="text-primary-text font-primary font-bold text-lg">VoiceFlow</span>
-            </div>
+            <img src={logo} alt="Valero Logo" className="w-35 h-35" />
           )}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-primary-text transition-colors"
-          >
-            {isCollapsed ? <Menu className="w-5 h-5" /> : <X className="w-5 h-5" />}
-          </button>
-        </div>
+          {isCollapsed && (
+            <img src={logoicon}
+             onClick={() => setIsCollapsed(!isCollapsed)}
+            alt="Valero Icon" className="w-8 h-8" />
+          )}
+
+          {!isCollapsed && (
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="right-4 p-2 rounded-lg hover:bg-background-tertiary text-secondary-text hover:text-primary transition-colors"
+              title="Collapse Sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+          </div>
 
         {/* Navigation */}
         <div className="flex-1 flex flex-col overflow-hidden">

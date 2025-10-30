@@ -3,27 +3,27 @@ version: '3.9'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: voiceflow_postgres
+    container_name: valero_postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-voiceflow_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-voiceflow_password}
-      POSTGRES_DB: ${DB_NAME:-voiceflow_db}
+      POSTGRES_USER: ${DB_USER:-valero_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-valero_password}
+      POSTGRES_DB: ${DB_NAME:-valero_db}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-voiceflow_user}']
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-valero_user}']
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - voiceflow_network
+      - valero_network
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    container_name: voiceflow_redis
+    container_name: valero_redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -34,7 +34,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - voiceflow_network
+      - valero_network
     restart: unless-stopped
     command: redis-server --appendonly yes
 
@@ -42,11 +42,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: voiceflow_backend
+    container_name: valero_backend
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
-      DATABASE_URL: postgresql://${DB_USER:-voiceflow_user}:${DB_PASSWORD:-voiceflow_password}@postgres:5432/${DB_NAME:-voiceflow_db}
+      DATABASE_URL: postgresql://${DB_USER:-valero_user}:${DB_PASSWORD:-valero_password}@postgres:5432/${DB_NAME:-valero_db}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-here}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-refresh-secret-here}
@@ -65,14 +65,14 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - voiceflow_network
+      - valero_network
     restart: unless-stopped
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: voiceflow_frontend
+    container_name: valero_frontend
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
       VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:3000}
@@ -87,7 +87,7 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - voiceflow_network
+      - valero_network
     restart: unless-stopped
 
 volumes:
@@ -97,5 +97,5 @@ volumes:
     driver: local
 
 networks:
-  voiceflow_network:
+  valero_network:
     driver: bridge

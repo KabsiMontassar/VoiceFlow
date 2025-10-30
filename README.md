@@ -1,4 +1,4 @@
-# VoiceFlow
+# Valero
 
 > A production-ready real-time communication platform featuring WebRTC voice chat, instant messaging, and presence tracking. Built with modern web technologies for scalability and performance.
 
@@ -32,7 +32,7 @@
 
 ## Overview
 
-VoiceFlow is a real-time communication platform that combines instant messaging with WebRTC-powered voice chat. Designed for scalability and performance, it supports multiple concurrent rooms with real-time presence tracking, typing indicators, and peer-to-peer voice connections.
+Valero is a real-time communication platform that combines instant messaging with WebRTC-powered voice chat. Designed for scalability and performance, it supports multiple concurrent rooms with real-time presence tracking, typing indicators, and peer-to-peer voice connections.
 
 ### Key Highlights
 
@@ -323,8 +323,8 @@ Ensure you have the following installed:
 #### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/KabsiMontassar/VoiceFlow.git
-cd VoiceFlow
+git clone https://github.com/KabsiMontassar/Valero.git
+cd Valero
 ```
 
 #### Step 2: Install Dependencies
@@ -351,12 +351,12 @@ cat .env  # View current configuration
 
 ```env
 # Database
-DATABASE_URL=postgresql://voiceflow_user:voiceflow_password@localhost:5432/voiceflow_db
+DATABASE_URL=postgresql://valero_user:valero_password@localhost:5432/valero_db
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=voiceflow_db
-DB_USER=voiceflow_user
-DB_PASSWORD=voiceflow_password
+DB_NAME=valero_db
+DB_USER=valero_user
+DB_PASSWORD=valero_password
 
 # JWT Secrets
 JWT_SECRET=your-secret-key-change-in-production
@@ -395,8 +395,8 @@ docker compose ps
 
 # Expected output:
 # NAME                IMAGE               STATUS
-# voiceflow-postgres  postgres:16-alpine  Up
-# voiceflow-redis     redis:7-alpine      Up
+# valero-postgres  postgres:16-alpine  Up
+# valero-redis     redis:7-alpine      Up
 ```
 
 **View database logs:**
@@ -416,7 +416,7 @@ pnpm dev
 **Expected output:**
 
 ```
-[INFO] Initializing VoiceFlow backend with performance optimizations...
+[INFO] Initializing valero backend with performance optimizations...
 [INFO] Connecting to database...
 [INFO] Database connected successfully
 [INFO] Setting up Redis adapter for Socket.IO...
@@ -424,7 +424,7 @@ pnpm dev
 [INFO] Initializing WebRTC service...
 [INFO] Setting up optimized socket handlers...
 [INFO] Setting up background jobs...
-[INFO]  VoiceFlow server running on http://localhost:3000
+[INFO]  valero server running on http://localhost:3000
 [INFO]  WebSocket available at ws://localhost:3000
 [INFO]  Environment: development
 [INFO]  Performance optimizations active:
@@ -463,7 +463,7 @@ Open your browser and navigate to:
 http://localhost:5173
 ```
 
-You should see the VoiceFlow login/register page.
+You should see the valero login/register page.
 
 ### Quick Test
 
@@ -492,9 +492,9 @@ export default {
   DATABASE_URL: process.env.DATABASE_URL,
   DB_HOST: process.env.DB_HOST || "localhost",
   DB_PORT: parseInt(process.env.DB_PORT || "5432", 10),
-  DB_NAME: process.env.DB_NAME || "voiceflow_db",
-  DB_USER: process.env.DB_USER || "voiceflow_user",
-  DB_PASSWORD: process.env.DB_PASSWORD || "voiceflow_password",
+  DB_NAME: process.env.DB_NAME || "valero_db",
+  DB_USER: process.env.DB_USER || "valero_user",
+  DB_PASSWORD: process.env.DB_PASSWORD || "valero_password",
 
   // JWT
   JWT_SECRET: process.env.JWT_SECRET,
@@ -558,7 +558,7 @@ export const WEBRTC_CONFIG = {
 ### Folder Structure
 
 ```text
-VoiceFlow/
+valero/
 ├── backend/                    # Express.js server
 │   ├── src/
 │   │   ├── config/            # Environment configuration
@@ -1036,7 +1036,7 @@ max: 1000,                  // 1000 requests per window
 
 - GitHub: [@KabsiMontassar](https://github.com/KabsiMontassar)
 - Email: <kebsimontassar@gmail.com>
-- Project Link: [https://github.com/KabsiMontassar/VoiceFlow](https://github.com/KabsiMontassar/VoiceFlow)
+- Project Link: [https://github.com/KabsiMontassar/valero](https://github.com/KabsiMontassar/valero)
 
 ---
 

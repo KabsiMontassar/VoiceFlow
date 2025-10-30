@@ -281,12 +281,12 @@ cleanupQueue.on('completed', (job) => {
 // Helper function to get email subjects
 function getEmailSubject(template: string, data: Record<string, unknown>): string {
   const subjects: Record<string, string> = {
-    welcome: 'Welcome to VoiceFlow!',
-    room_invite: `You've been invited to join ${data.roomName || 'a room'} on VoiceFlow`,
-    password_reset: 'Reset your VoiceFlow password',
+    welcome: 'Welcome to Valero!',
+    room_invite: `You've been invited to join ${data.roomName || 'a room'} on Valero`,
+    password_reset: 'Reset your Valero password',
   };
 
-  return subjects[template] || 'VoiceFlow Notification';
+  return subjects[template] || 'Valero Notification';
 }
 
 export default {

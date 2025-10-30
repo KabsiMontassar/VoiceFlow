@@ -19,7 +19,7 @@ import JoinRoomModal from '../components/dashboard/JoinRoomModal';
 import FriendRequestModal from '../components/dashboard/FriendRequestModal';
 import { FriendCardSkeleton } from '../components/ui/LoadingSkeleton';
 import { apiClient } from '../services/api';
-import type { FriendWithStatus } from '@voiceflow/shared';
+import type { FriendWithStatus } from '@valero/shared';
 
 type DashboardView = 'friends' | 'profile' | 'requests';
 
